@@ -1,0 +1,124 @@
+openapi: 3.1.0
+info:
+  title: Temperature Log API
+  version: 0.1.0
+paths:
+  /temperatures:
+    post:
+      summary: Register a temperature reading
+      operationId: createTemperatureLog
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TemperatureCreateRequest"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TemperatureLog"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    get:
+      summary: Search temperature readings
+      operationId: listTemperatureLogs
+      parameters:
+        - name: probe_id
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: start_at
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: end_at
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TemperatureLog"
+  /temperatures/latest/{probe_id}:
+    get:
+      summary: Get the latest temperature reading
+      operationId: getLatestTemperatureLog
+      parameters:
+        - name: probe_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TemperatureLog"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+components:
+  schemas:
+    TemperatureLog:
+      type: object
+      required:
+        - id
+        - probe_id
+        - recorded_at
+        - temperature
+      properties:
+        id:
+          type: integer
+          format: int64
+        probe_id:
+          type: string
+        recorded_at:
+          type: string
+          format: date-time
+        temperature:
+          type: number
+          format: float
+    TemperatureCreateRequest:
+      type: object
+      required:
+        - probe_id
+        - recorded_at
+        - temperature
+      properties:
+        probe_id:
+          type: string
+        recorded_at:
+          type: string
+          format: date-time
+        temperature:
+          type: number
+          format: float
+    ErrorResponse:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
