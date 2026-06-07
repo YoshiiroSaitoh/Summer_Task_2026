@@ -1,0 +1,50 @@
+﻿@baseUrl = http://localhost:8080
+
+###
+# probeA demo data
+POST {{baseUrl}}/temperatures
+Content-Type: application/json
+
+{
+  "probe_id": "probeA",
+  "recorded_at": "2026-06-07T09:00:00+09:00",
+  "temperature": 35.0
+}
+
+###
+POST {{baseUrl}}/temperatures
+Content-Type: application/json
+
+{
+  "probe_id": "probeA",
+  "recorded_at": "2026-06-07T09:00:10+09:00",
+  "temperature": 35.0
+}
+
+###
+# probeB demo data
+POST {{baseUrl}}/temperatures
+Content-Type: application/json
+
+{
+  "probe_id": "probeB",
+  "recorded_at": "2026-06-07T09:00:00+09:00",
+  "temperature": 35.0
+}
+
+###
+POST {{baseUrl}}/temperatures
+Content-Type: application/json
+
+{
+  "probe_id": "probeB",
+  "recorded_at": "2026-06-07T09:00:10+09:00",
+  "temperature": 35.0
+}
+
+###
+# Verify latest readings
+GET {{baseUrl}}/temperatures/latest/probeA
+
+###
+GET {{baseUrl}}/temperatures/latest/probeB

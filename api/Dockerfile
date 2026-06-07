@@ -1,4 +1,4 @@
-﻿FROM python:3.12-slim AS builder
+FROM python:3.12-slim AS builder
 
 WORKDIR /usr/src/app
 
@@ -22,6 +22,8 @@ RUN pytest tests
 
 
 FROM python:3.12-slim AS service
-WORKDIR /root/app/site-packages
+WORKDIR /usr/src/app
 COPY --from=test_runner /venv /venv
+COPY --from=builder /usr/src/app/src/ /usr/src/app/
 ENV PATH=/venv/bin:$PATH
+ENV PYTHONPATH=/usr/src/app

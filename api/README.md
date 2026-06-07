@@ -52,6 +52,18 @@ psql -U postgres -d postgres -f db/setup.sql
 psql -U apluser -d summer -f db/setup_tables.sql
 ```
 
+## API経由のデモ投入
+
+`api/tests/tools/seed_requests.py` にデモ用の送信処理を置いています。
+
+`api` ディレクトリで次を実行すると、`probeA` / `probeB` のデモデータをまとめて投入できます。
+
+```powershell
+python -m tests.tools.seed_requests --base-url http://localhost:8080 --verify
+```
+
+`--verify` を付けると、投入後に `GET /temperatures/latest/{probe_id}` を確認します。
+
 ## テスト
 
 ```powershell
