@@ -64,6 +64,21 @@ python -m tests.tools.seed_requests --base-url http://localhost:8080 --verify
 
 `--verify` を付けると、投入後に `GET /temperatures/latest/{probe_id}` を確認します。
 
+`POST /temperatures` は `recorded_at` を省略でき、省略時はサーバー側の現在時刻を使います。
+
+## Grafana
+
+`docker compose up` で `Grafana` も起動します。温度ログの確認先は次のとおりです。
+
+- URL: `http://localhost:3000`
+- ユーザー名: `admin`
+- パスワード: `admin`
+
+初期 dashboard は `Temperature Logs` で、`temperature_logs` テーブルから次を表示します。
+
+- 時系列の温度推移
+- probe ごとの最新温度
+
 ## テスト
 
 ```powershell

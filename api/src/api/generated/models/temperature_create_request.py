@@ -22,7 +22,7 @@ import json
 
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict, StrictFloat, StrictInt, StrictStr
-from typing import Any, ClassVar, Dict, List, Union
+from typing import Any, ClassVar, Dict, List, Optional, Union
 try:
     from typing import Self
 except ImportError:
@@ -33,7 +33,7 @@ class TemperatureCreateRequest(BaseModel):
     TemperatureCreateRequest
     """ # noqa: E501
     probe_id: StrictStr
-    recorded_at: datetime
+    recorded_at: Optional[datetime] = None
     temperature: Union[StrictFloat, StrictInt]
     __properties: ClassVar[List[str]] = ["probe_id", "recorded_at", "temperature"]
 

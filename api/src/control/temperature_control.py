@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from control.exception.temperature_not_found_exception import (
     TemperatureNotFoundException,
@@ -20,7 +20,7 @@ class TemperatureControl:
     def register_temperature(
         self,
         probe_id: str,
-        recorded_at: datetime,
+        recorded_at: datetime | None,
         temperature: float,
     ) -> TemperatureLog:
         """Registers a new temperature log.
@@ -29,20 +29,21 @@ class TemperatureControl:
             probe_id:
                 Probe identifier.
             recorded_at:
-                Time of measurement.
+                Time of measurement. If omitted, the current UTC time is used.
             temperature:
                 Measured temperature.
 
         Returns:
             The persisted temperature log.
         """
-        self._validate_temperature(probe_id, recorded_at, temperature)
+        effective_recorded_at = recorded_at or datetime.now(timezone.utc)
+        self._validate_temperature(probe_id, effective_recorded_at, temperature)
         with self._connection_manager.get_session() as session:
             try:
                 temperature_log = self._repository.insert(
                     session,
                     probe_id=probe_id,
-                    recorded_at=recorded_at,
+                    recorded_at=effective_recorded_at,
                     temperature=temperature,
                 )
                 session.commit()

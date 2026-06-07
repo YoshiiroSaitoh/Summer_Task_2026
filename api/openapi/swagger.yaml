@@ -104,7 +104,6 @@ components:
       type: object
       required:
         - probe_id
-        - recorded_at
         - temperature
       properties:
         probe_id:
