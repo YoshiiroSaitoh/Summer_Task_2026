@@ -10,8 +10,6 @@ build/
 .openapi-generator/
 .openapi-generator-ignore
 .flake8
-Dockerfile
-docker-compose.yaml
 openapi.yaml
 requirements.txt
 setup.cfg
