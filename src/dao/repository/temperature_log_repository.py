@@ -6,8 +6,8 @@ from datetime import datetime
 from sqlalchemy import Select, insert, select
 from sqlalchemy.orm import Session
 
-from src.dao.exception.db_exception import DBException
-from src.dao.model.temperature_log import TemperatureLog, temperature_logs
+from dao.exception.db_exception import DBException
+from dao.model.temperature_log import TemperatureLog, temperature_logs
 
 
 class TemperatureLogRepository:
@@ -37,7 +37,7 @@ class TemperatureLogRepository:
                     temperature_logs.c.temperature,
                 ).where(temperature_logs.c.id == inserted_id)
             ).mappings().one()
-            return TemperatureLog(**row)
+            return self._to_domain(row)
         except Exception as exc:  # noqa: BLE001
             raise DBException("failed to insert temperature log") from exc
 
@@ -61,7 +61,7 @@ class TemperatureLogRepository:
         row = session.execute(statement).mappings().first()
         if row is None:
             return None
-        return TemperatureLog(**row)
+        return self._to_domain(row)
 
     def find_by_probe_id_and_range(
         self,
@@ -84,5 +84,15 @@ class TemperatureLogRepository:
         if end_at is not None:
             statement = statement.where(temperature_logs.c.recorded_at <= end_at)
 
-        rows = session.execute(statement.order_by(temperature_logs.c.recorded_at.asc())).mappings()
-        return [TemperatureLog(**row) for row in rows]
+        rows = session.execute(
+            statement.order_by(temperature_logs.c.recorded_at.asc())
+        ).mappings()
+        return [self._to_domain(row) for row in rows]
+
+    def _to_domain(self, row: dict[str, object]) -> TemperatureLog:
+        return TemperatureLog(
+            id=int(row["id"]),
+            probe_id=str(row["probe_id"]),
+            recorded_at=row["recorded_at"],
+            temperature=float(row["temperature"]),
+        )

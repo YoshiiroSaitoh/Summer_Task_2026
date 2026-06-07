@@ -5,8 +5,8 @@ from datetime import datetime, timezone
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from src.dao.model.temperature_log import metadata
-from src.dao.repository.temperature_log_repository import TemperatureLogRepository
+from dao.model.temperature_log import metadata
+from dao.repository.temperature_log_repository import TemperatureLogRepository
 
 
 def test_insert_and_latest_lookup() -> None:

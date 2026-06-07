@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from src.control.exception.temperature_not_found_exception import (
+from control.exception.temperature_not_found_exception import (
     TemperatureNotFoundException,
 )
-from src.dao.manager.db_connection_manager import DBConnectionManager
-from src.dao.model.temperature_log import TemperatureLog
-from src.dao.repository.temperature_log_repository import TemperatureLogRepository
+from dao.manager.db_connection_manager import DBConnectionManager
+from dao.model.temperature_log import TemperatureLog
+from dao.repository.temperature_log_repository import TemperatureLogRepository
 
 
 class TemperatureControl:
@@ -70,6 +70,35 @@ class TemperatureControl:
             if temperature_log is None:
                 raise TemperatureNotFoundException(f"temperature not found for {probe_id}")
             return temperature_log
+
+    def list_temperature_logs(
+        self,
+        probe_id: str | None,
+        start_at: datetime | None,
+        end_at: datetime | None,
+    ) -> list[TemperatureLog]:
+        """Lists temperature logs filtered by identifier and time range.
+
+        Args:
+            probe_id:
+                Probe identifier filter.
+            start_at:
+                Inclusive start time filter.
+            end_at:
+                Inclusive end time filter.
+
+        Returns:
+            Matching temperature logs.
+        """
+        with self._connection_manager.get_session() as session:
+            return list(
+                self._repository.find_by_probe_id_and_range(
+                    session,
+                    probe_id,
+                    start_at,
+                    end_at,
+                )
+            )
 
     def _validate_temperature(
         self,
