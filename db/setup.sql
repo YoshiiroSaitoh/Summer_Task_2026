@@ -1,3 +1,5 @@
+\set ON_ERROR_STOP on
+
 DO
 $$
 BEGIN
@@ -11,18 +13,13 @@ BEGIN
 END
 $$;
 
-DO
-$$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1
-        FROM pg_database
-        WHERE datname = 'summer'
-    ) THEN
-        CREATE DATABASE summer OWNER apluser;
-    END IF;
-END
-$$;
+SELECT format('CREATE DATABASE %I OWNER %I', 'summer', 'apluser')
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM pg_database
+    WHERE datname = 'summer'
+)
+\gexec
 
 \connect summer
 
