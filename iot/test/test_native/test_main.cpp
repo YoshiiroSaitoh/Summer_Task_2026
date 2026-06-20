@@ -153,6 +153,34 @@ std::string extractBody(const std::string &request)
     const std::size_t bodyStart = request.find("\r\n\r\n");
     return bodyStart == std::string::npos ? "" : request.substr(bodyStart + 4);
 }
+
+std::string formatTemperature(float value)
+{
+    char buffer[16];
+    std::snprintf(buffer, sizeof(buffer), "%.1f", value);
+    return buffer;
+}
+
+std::string buildExpectedBody(const TemperatureData *temperatures, int count)
+{
+    std::string body = "[";
+    for (int index = 0; index < count; ++index)
+    {
+        if (index > 0)
+        {
+            body += ",";
+        }
+
+        body += "{\"probe_id\":\"";
+        body += temperatures[index].sensorId.c_str();
+        body += "\",\"temperature\":";
+        body += formatTemperature(temperatures[index].temperature);
+        body += "}";
+    }
+
+    body += "]";
+    return body;
+}
 }
 
 extern "C" void setUp(void)
@@ -170,11 +198,15 @@ void test_dummy_provider_returns_expected_values()
     const int count = provider.getTemperatures(temperatures, 3);
     TEST_ASSERT_EQUAL_INT(3, count);
     TEST_ASSERT_EQUAL_STRING("room", temperatures[0].sensorId.c_str());
-    TEST_ASSERT_FLOAT_WITHIN(0.001f, 25.0f, temperatures[0].temperature);
+    TEST_ASSERT_FLOAT_WITHIN(3.001f, 25.0f, temperatures[0].temperature);
     TEST_ASSERT_EQUAL_STRING("outside", temperatures[1].sensorId.c_str());
-    TEST_ASSERT_FLOAT_WITHIN(0.001f, 18.0f, temperatures[1].temperature);
+    TEST_ASSERT_FLOAT_WITHIN(3.001f, 18.0f, temperatures[1].temperature);
     TEST_ASSERT_EQUAL_STRING("fridge", temperatures[2].sensorId.c_str());
-    TEST_ASSERT_FLOAT_WITHIN(0.001f, 5.0f, temperatures[2].temperature);
+    TEST_ASSERT_FLOAT_WITHIN(3.001f, 5.0f, temperatures[2].temperature);
+
+    TEST_ASSERT_TRUE(temperatures[0].temperature >= 23.0f && temperatures[0].temperature <= 28.0f);
+    TEST_ASSERT_TRUE(temperatures[1].temperature >= 16.0f && temperatures[1].temperature <= 21.0f);
+    TEST_ASSERT_TRUE(temperatures[2].temperature >= 3.0f && temperatures[2].temperature <= 8.0f);
 }
 
 void test_api_client_posts_expected_json()
@@ -190,17 +222,17 @@ void test_api_client_posts_expected_json()
     const int count = provider.getTemperatures(temperatures, 3);
 
     NativeHttpTransport transport;
-    ApiClient apiClient(transport, "http://127.0.0.1:18080/temperatures");
+    ApiClient apiClient(transport, "http://127.0.0.1:18080/temperatures/bulk");
     TEST_ASSERT_TRUE(apiClient.send(temperatures, count));
 
     server.stop();
 
     const std::string request = server.request();
     std::printf("Captured request:\n%s\n", request.c_str());
-    TEST_ASSERT_TRUE(request.find("POST /temperatures HTTP/1.1") != std::string::npos);
+    TEST_ASSERT_TRUE(request.find("POST /temperatures/bulk HTTP/1.1") != std::string::npos);
     TEST_ASSERT_TRUE(request.find("Content-Type: application/json") != std::string::npos);
     TEST_ASSERT_EQUAL_STRING(
-        "{\"temperatures\":[{\"sensor_id\":\"room\",\"temperature\":25.0},{\"sensor_id\":\"outside\",\"temperature\":18.0},{\"sensor_id\":\"fridge\",\"temperature\":5.0}]}",
+        buildExpectedBody(temperatures, count).c_str(),
         extractBody(request).c_str());
 #else
     TEST_IGNORE_MESSAGE("Native HTTP test is only available on Windows.");

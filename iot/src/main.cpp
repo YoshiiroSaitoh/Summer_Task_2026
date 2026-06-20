@@ -5,6 +5,7 @@
 #include <AppConfig.h>
 #include <ArduinoHttpTransport.h>
 #include <DummyProvider.h>
+#include <Logger.h>
 #include <TemperatureProvider.h>
 
 namespace
@@ -14,31 +15,82 @@ TemperatureProvider *temperatureProvider = nullptr;
 ArduinoHttpTransport httpTransport;
 ApiClient apiClient(httpTransport);
 
+const char *wifiStatusToString(int status)
+{
+    switch (status)
+    {
+    case WL_NO_SHIELD:
+        return "WL_NO_SHIELD";
+    case WL_IDLE_STATUS:
+        return "WL_IDLE_STATUS";
+    case WL_NO_SSID_AVAIL:
+        return "WL_NO_SSID_AVAIL";
+    case WL_SCAN_COMPLETED:
+        return "WL_SCAN_COMPLETED";
+    case WL_CONNECTED:
+        return "WL_CONNECTED";
+    case WL_CONNECT_FAILED:
+        return "WL_CONNECT_FAILED";
+    case WL_CONNECTION_LOST:
+        return "WL_CONNECTION_LOST";
+    case WL_DISCONNECTED:
+        return "WL_DISCONNECTED";
+    default:
+        return "WL_UNKNOWN";
+    }
+}
+
+void logNetworkInfo(Logger::Level level)
+{
+    const String localIp = WiFi.localIP().toString();
+    const String gatewayIp = WiFi.gatewayIP().toString();
+    const String subnetMask = WiFi.subnetMask().toString();
+    const String dns1 = WiFi.dnsIP(0).toString();
+    const String dns2 = WiFi.dnsIP(1).toString();
+
+    if (level == Logger::Level::Debug)
+    {
+        Logger::debugf("WiFi status: %s", wifiStatusToString(WiFi.status()));
+        Logger::debugf("IP address: %s", localIp.c_str());
+        Logger::debugf("Gateway: %s", gatewayIp.c_str());
+        Logger::debugf("Subnet: %s", subnetMask.c_str());
+        Logger::debugf("DNS1: %s", dns1.c_str());
+        Logger::debugf("DNS2: %s", dns2.c_str());
+        return;
+    }
+
+    Logger::infof("WiFi status: %s", wifiStatusToString(WiFi.status()));
+    Logger::infof("IP address: %s", localIp.c_str());
+    Logger::infof("Gateway: %s", gatewayIp.c_str());
+    Logger::infof("Subnet: %s", subnetMask.c_str());
+    Logger::infof("DNS1: %s", dns1.c_str());
+    Logger::infof("DNS2: %s", dns2.c_str());
+}
+
 void connectToWiFi()
 {
-    Serial.print("Connecting to WiFi: ");
-    Serial.println(AppConfig::WIFI_SSID);
+    Logger::infof("Connecting to WiFi: %s", AppConfig::WIFI_SSID);
+    Logger::info("WiFi connect start");
 
     int attemptCount = 0;
     while (WiFi.status() != WL_CONNECTED && attemptCount < AppConfig::WIFI_MAX_RETRIES)
     {
+        Logger::infof("Attempt %d", attemptCount + 1);
         WiFi.begin(AppConfig::WIFI_SSID, AppConfig::WIFI_PASSWORD);
         delay(AppConfig::WIFI_RETRY_DELAY_MS);
         ++attemptCount;
-        Serial.print(".");
+        Logger::infof("status=%s", wifiStatusToString(WiFi.status()));
     }
-
-    Serial.println();
 
     if (WiFi.status() == WL_CONNECTED)
     {
-        Serial.println("WiFi connected");
-        Serial.print("IP address: ");
-        Serial.println(WiFi.localIP());
+        Logger::info("WiFi connected");
+        logNetworkInfo(Logger::Level::Info);
         return;
     }
 
-    Serial.println("WiFi connection failed");
+    Logger::error("WiFi connection failed");
+    logNetworkInfo(Logger::Level::Debug);
 }
 }
 
@@ -46,7 +98,8 @@ void executeMeasurementCycle()
 {
     if (temperatureProvider == nullptr)
     {
-        Serial.println("Temperature provider is not initialized");
+        Logger::error("Temperature provider is not initialized");
+        logNetworkInfo(Logger::Level::Debug);
         return;
     }
 
@@ -57,34 +110,36 @@ void executeMeasurementCycle()
 
     if (count <= 0)
     {
-        Serial.println("No temperatures collected");
+        Logger::warn("No temperatures collected");
+        logNetworkInfo(Logger::Level::Debug);
         return;
     }
 
     if (!apiClient.send(temperatures, count))
     {
-        Serial.println("Temperature send failed");
+        Logger::error("Temperature send failed");
+        logNetworkInfo(Logger::Level::Debug);
         return;
     }
 
-    Serial.println("Temperature send succeeded");
+    Logger::info("Temperature send succeeded");
 }
 
 void setup()
 {
-    Serial.begin(115200);
+    Logger::begin(115200);
     delay(1000);
 
     connectToWiFi();
 
     if (AppConfig::WIFI_ONLY_TEST_MODE)
     {
-        Serial.println("WiFi-only test mode enabled");
+        Logger::info("WiFi-only test mode enabled");
         return;
     }
 
     temperatureProvider = &dummyProvider;
-    Serial.println("Temperature provider initialized");
+    Logger::info("Temperature provider initialized");
 }
 
 void loop()

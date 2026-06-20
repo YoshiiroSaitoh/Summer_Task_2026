@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 from dataclasses import dataclass
-from typing import Iterable
+from typing import Any, Iterable
 
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
@@ -25,7 +25,7 @@ REQUESTS: tuple[TemperatureRequest, ...] = (
 )
 
 
-def request_json(method: str, url: str, payload: dict[str, object] | None = None) -> dict[str, object]:
+def request_json(method: str, url: str, payload: Any = None) -> Any:
     body = None if payload is None else json.dumps(payload).encode("utf-8")
     request = Request(
         url,
@@ -35,21 +35,24 @@ def request_json(method: str, url: str, payload: dict[str, object] | None = None
     )
     try:
         with urlopen(request, timeout=10) as response:
-            return json.loads(response.read().decode("utf-8"))
+                return json.loads(response.read().decode("utf-8"))
     except HTTPError as error:
         error_body = error.read().decode("utf-8", errors="replace")
         raise RuntimeError(f"{method} {url} failed: {error.code} {error.reason}: {error_body}") from error
 
 
-def post_temperature(base_url: str, temperature_request: TemperatureRequest) -> dict[str, object]:
+def post_temperatures(base_url: str, temperature_requests: Iterable[TemperatureRequest]) -> Any:
     return request_json(
         "POST",
-        f"{base_url}/temperatures",
-        {
-            "probe_id": temperature_request.probe_id,
-            "recorded_at": temperature_request.recorded_at,
-            "temperature": temperature_request.temperature,
-        },
+        f"{base_url}/temperatures/bulk",
+        [
+            {
+                "probe_id": temperature_request.probe_id,
+                "recorded_at": temperature_request.recorded_at,
+                "temperature": temperature_request.temperature,
+            }
+            for temperature_request in temperature_requests
+        ],
     )
 
 
@@ -58,8 +61,7 @@ def get_latest_temperature(base_url: str, probe_id: str) -> dict[str, object]:
 
 
 def seed_requests(base_url: str) -> None:
-    for temperature_request in REQUESTS:
-        post_temperature(base_url, temperature_request)
+    post_temperatures(base_url, REQUESTS)
 
 
 def verify_latest_readings(base_url: str, probe_ids: Iterable[str]) -> None:

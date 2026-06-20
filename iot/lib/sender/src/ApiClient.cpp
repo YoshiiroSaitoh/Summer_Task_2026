@@ -43,7 +43,7 @@ String ApiClient::buildPayload(
     TemperatureData *data,
     int count) const
 {
-    String payload = "{\"temperatures\":[";
+    String payload = "[";
 
     for (int index = 0; index < count; ++index)
     {
@@ -52,13 +52,13 @@ String ApiClient::buildPayload(
             payload += ",";
         }
 
-        payload += "{\"sensor_id\":\"";
+        payload += "{\"probe_id\":\"";
         payload += data[index].sensorId;
         payload += "\",\"temperature\":";
         payload += formatTemperature(data[index].temperature);
         payload += "}";
     }
 
-    payload += "]}";
+    payload += "]";
     return payload;
 }

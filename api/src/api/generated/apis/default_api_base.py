@@ -32,6 +32,13 @@ class BaseDefaultApi:
         ...
 
 
+    async def create_temperature_logs(
+        self,
+        temperature_create_request: List[TemperatureCreateRequest],
+    ) -> List[TemperatureLog]:
+        ...
+
+
     async def get_latest_temperature_log(
         self,
         probe_id: StrictStr,

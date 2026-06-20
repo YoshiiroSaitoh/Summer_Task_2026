@@ -3,6 +3,7 @@
 #ifdef ARDUINO
 
 #include <WiFiS3.h>
+#include <Logger.h>
 
 namespace
 {
@@ -77,11 +78,20 @@ bool sendRequest(
     const String &payload,
     String *responseStatus)
 {
+    Logger::debugf("=> trying connect %s:%u", parsedUrl.host.c_str(), parsedUrl.port);
     if (!client.connect(parsedUrl.host.c_str(), parsedUrl.port))
     {
-        Serial.println("HTTP connection failed");
+        Logger::error("HTTP connection failed");
+        Logger::debugf("=> connect failed %s:%u", parsedUrl.host.c_str(), parsedUrl.port);
         return false;
     }
+
+    Logger::debugf("=> POST %s HTTP/1.1", parsedUrl.path.c_str());
+    Logger::debugf("=> Host: %s", parsedUrl.host.c_str());
+    Logger::debug("=> Content-Type: application/json");
+    Logger::debugf("=> Content-Length: %u", static_cast<unsigned int>(payload.length()));
+    Logger::debug("=> Connection: close");
+    Logger::debugf("=> payload: %s", payload.c_str());
 
     client.print("POST ");
     client.print(parsedUrl.path);
@@ -101,10 +111,14 @@ bool sendRequest(
         delay(10);
     }
 
+    if (!client.available())
+    {
+        Logger::debug("<= no response received");
+    }
+
     String statusLine = client.readStringUntil('\n');
     statusLine.trim();
-    Serial.print("HTTP status: ");
-    Serial.println(statusLine);
+    Logger::debugf("<= %s", statusLine.c_str());
 
     if (responseStatus != nullptr)
     {
@@ -124,19 +138,22 @@ bool ArduinoHttpTransport::postJson(
 {
     if (WiFi.status() != WL_CONNECTED)
     {
-        Serial.println("WiFi is not connected");
+        Logger::error("WiFi is not connected");
         return false;
     }
 
     ParsedUrl parsedUrl;
     if (!parseUrl(String(url), parsedUrl))
     {
-        Serial.println("Invalid API URL");
+        Logger::error("Invalid API URL");
         return false;
     }
 
-    Serial.print("Sending payload: ");
-    Serial.println(payload);
+    Logger::debugf("API URL: %s", url);
+    Logger::debugf("API host: %s", parsedUrl.host.c_str());
+    Logger::debugf("API port: %u", parsedUrl.port);
+    Logger::debugf("API path: %s", parsedUrl.path.c_str());
+    Logger::debugf("API scheme: %s", parsedUrl.useTls ? "https" : "http");
 
     if (parsedUrl.useTls)
     {

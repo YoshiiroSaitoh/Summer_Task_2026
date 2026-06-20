@@ -65,6 +65,7 @@ python -m tests.tools.seed_requests --base-url http://localhost:8080 --verify
 `--verify` を付けると、投入後に `GET /temperatures/latest/{probe_id}` を確認します。
 
 `POST /temperatures` は `recorded_at` を省略でき、省略時はサーバー側の現在時刻を使います。
+複数件投入したい場合は `POST /temperatures/bulk` を使います。
 
 ## Grafana
 

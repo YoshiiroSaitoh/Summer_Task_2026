@@ -52,6 +52,39 @@ class TemperatureControl:
                 session.rollback()
                 raise
 
+    def register_temperatures(
+        self,
+        temperature_items: list[tuple[str, datetime | None, float]],
+    ) -> list[TemperatureLog]:
+        """Registers multiple temperature logs in a single transaction."""
+        normalized_items = [
+            (
+                probe_id,
+                recorded_at or datetime.now(timezone.utc),
+                temperature,
+            )
+            for probe_id, recorded_at, temperature in temperature_items
+        ]
+        for probe_id, recorded_at, temperature in normalized_items:
+            self._validate_temperature(probe_id, recorded_at, temperature)
+
+        with self._connection_manager.get_session() as session:
+            try:
+                temperature_logs = [
+                    self._repository.insert(
+                        session,
+                        probe_id=probe_id,
+                        recorded_at=recorded_at,
+                        temperature=temperature,
+                    )
+                    for probe_id, recorded_at, temperature in normalized_items
+                ]
+                session.commit()
+                return temperature_logs
+            except Exception:
+                session.rollback()
+                raise
+
     def get_latest_temperature(self, probe_id: str) -> TemperatureLog:
         """Gets the latest temperature log for a probe.
 

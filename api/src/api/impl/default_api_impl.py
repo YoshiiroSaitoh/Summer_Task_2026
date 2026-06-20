@@ -48,6 +48,25 @@ class DefaultApiImpl(BaseApiImpl, BaseDefaultApi):
         self.log_response(201)
         return self._to_generated_temperature_log(temperature_log)
 
+    async def create_temperature_logs(
+        self,
+        temperature_create_request: list[TemperatureCreateRequest],
+    ) -> list[GeneratedTemperatureLog]:
+        """Creates multiple temperature logs for the generated API."""
+        self.log_request("POST", "/temperatures/bulk")
+        temperature_logs = self._control.register_temperatures(
+            [
+                (
+                    request.probe_id,
+                    request.recorded_at,
+                    float(request.temperature),
+                )
+                for request in temperature_create_request
+            ]
+        )
+        self.log_response(201)
+        return [self._to_generated_temperature_log(temperature_log) for temperature_log in temperature_logs]
+
     async def get_latest_temperature_log(
         self,
         probe_id: str,

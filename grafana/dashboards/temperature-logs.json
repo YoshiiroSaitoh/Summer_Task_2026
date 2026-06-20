@@ -1,0 +1,80 @@
+{
+  "id": null,
+  "uid": "temperature-logs",
+  "title": "Temperature Logs",
+  "tags": ["temperature", "summer-task"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "probe_id",
+        "type": "query",
+        "datasource": {
+          "type": "postgres",
+          "uid": "postgres"
+        },
+        "definition": "SELECT DISTINCT probe_id FROM temperature_logs ORDER BY 1",
+        "query": "SELECT DISTINCT probe_id FROM temperature_logs ORDER BY 1",
+        "refresh": 1,
+        "includeAll": true,
+        "multi": true,
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": ".*"
+        },
+        "sort": 1,
+        "hide": 0
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Temperature by probe",
+      "datasource": {
+        "type": "postgres",
+        "uid": "postgres"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "postgres"
+          },
+          "format": "time_series",
+          "rawSql": "SELECT recorded_at AS \"time\", temperature, probe_id AS \"metric\" FROM temperature_logs WHERE $__timeFilter(recorded_at) AND probe_id ~ '${probe_id:regex}' ORDER BY recorded_at",
+          "legendFormat": "{{metric}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      }
+    }
+  ]
+}

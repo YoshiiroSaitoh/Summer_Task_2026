@@ -1,0 +1,16 @@
+apiVersion: 1
+
+datasources:
+  - name: PostgreSQL
+    uid: postgres
+    type: postgres
+    access: proxy
+    url: db:5432
+    database: summer
+    user: apluser
+    secureJsonData:
+      password: password
+    jsonData:
+      sslmode: disable
+      postgresVersion: 1600
+      timescaledb: false

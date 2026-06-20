@@ -4,28 +4,6 @@ info:
   version: 0.1.0
 paths:
   /temperatures:
-    post:
-      summary: Register a temperature reading
-      operationId: createTemperatureLog
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/TemperatureCreateRequest"
-      responses:
-        "201":
-          description: Created
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/TemperatureLog"
-        "400":
-          description: Invalid request
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
     get:
       summary: Search temperature readings
       operationId: listTemperatureLogs
@@ -56,6 +34,53 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/TemperatureLog"
+    post:
+      summary: Register a temperature reading
+      operationId: createTemperatureLog
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TemperatureCreateRequest"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TemperatureLog"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /temperatures/bulk:
+    post:
+      summary: Register multiple temperature readings
+      operationId: createTemperatureLogs
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TemperatureCreateRequests"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TemperatureLog"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /temperatures/latest/{probe_id}:
     get:
       summary: Get the latest temperature reading
@@ -114,6 +139,10 @@ components:
         temperature:
           type: number
           format: float
+    TemperatureCreateRequests:
+      type: array
+      items:
+        $ref: "#/components/schemas/TemperatureCreateRequest"
     ErrorResponse:
       type: object
       required:

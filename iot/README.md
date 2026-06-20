@@ -1,223 +1,221 @@
-# UNO R4 WiFi Temperature Sender
+﻿# UNO R4 WiFi Temperature Sender
 
-## 概要
+## 讎りｦ・
 
-Arduino UNO R4 WiFi 上で動作する温度送信クライアントです。  
-現在は `DummyProvider` が固定の 3 件を返し、`ApiClient` が JSON を生成して Web API へ POST します。
+Arduino UNO R4 WiFi 荳翫〒蜍穂ｽ懊☆繧区ｸｩ蠎ｦ騾∽ｿ｡繧ｯ繝ｩ繧､繧｢繝ｳ繝医〒縺吶・ 
+迴ｾ蝨ｨ縺ｯ `DummyProvider` 縺悟崋螳壹・ 3 莉ｶ繧定ｿ斐＠縲～ApiClient` 縺・JSON 繧堤函謌舌＠縺ｦ Web API 縺ｸ POST 縺励∪縺吶・
 
-今回の実装では温度取得はダミー実装とし、WiFi 接続と HTTP 送信を確認対象にしています。
+莉雁屓縺ｮ螳溯｣・〒縺ｯ貂ｩ蠎ｦ蜿門ｾ励・繝繝溘・螳溯｣・→縺励仝iFi 謗･邯壹→ HTTP 騾∽ｿ｡繧堤｢ｺ隱榊ｯｾ雎｡縺ｫ縺励※縺・∪縺吶・
 
-## クラス構成
+## 繧ｯ繝ｩ繧ｹ讒区・
 
-依存方向は以下です。
+萓晏ｭ俶婿蜷代・莉･荳九〒縺吶・
 
 ```text
 main
- ↓
+ 竊・
 TemperatureProvider
- ↓
+ 竊・
 ApiClient
 ```
 
 - `main.cpp`
-  - 測定サイクルの制御のみを担当します。
-  - `executeMeasurementCycle()` で温度取得と送信を呼び出します。
+  - 貂ｬ螳壹し繧､繧ｯ繝ｫ縺ｮ蛻ｶ蠕｡縺ｮ縺ｿ繧呈球蠖薙＠縺ｾ縺吶・
+  - `executeMeasurementCycle()` 縺ｧ貂ｩ蠎ｦ蜿門ｾ励→騾∽ｿ｡繧貞他縺ｳ蜃ｺ縺励∪縺吶・
 - `TemperatureProvider`
-  - 温度取得の抽象インターフェースです。
-  - 将来 `Ds18b20Provider` へ差し替えても `main.cpp` は変更不要です。
+  - 貂ｩ蠎ｦ蜿門ｾ励・謚ｽ雎｡繧､繝ｳ繧ｿ繝ｼ繝輔ぉ繝ｼ繧ｹ縺ｧ縺吶・
+  - 蟆・擂 `Ds18b20Provider` 縺ｸ蟾ｮ縺玲崛縺医※繧・`main.cpp` 縺ｯ螟画峩荳崎ｦ√〒縺吶・
 - `DummyProvider`
-  - 現在の仮実装です。
-  - `room` `outside` `fridge` の 3 件を返します。
+  - 迴ｾ蝨ｨ縺ｮ莉ｮ螳溯｣・〒縺吶・
+  - `room` `outside` `fridge` 縺ｮ 3 莉ｶ繧定ｿ斐＠縺ｾ縺吶・
 - `ApiClient`
-  - `TemperatureData` 配列から JSON を生成し、HTTP POST を実行します。
+  - `TemperatureData` 驟榊・縺九ｉ JSON 繧堤函謌舌＠縲？TTP POST 繧貞ｮ溯｡後＠縺ｾ縺吶・
 - `HttpTransport`
-  - `ApiClient` が利用する通信抽象です。
-  - 実機では `ArduinoHttpTransport`、Windows ローカルテストでは `NativeHttpTransport` を使います。
+  - `ApiClient` 縺悟茜逕ｨ縺吶ｋ騾壻ｿ｡謚ｽ雎｡縺ｧ縺吶・
+  - 螳滓ｩ溘〒縺ｯ `ArduinoHttpTransport`縲仝indows 繝ｭ繝ｼ繧ｫ繝ｫ繝・せ繝医〒縺ｯ `NativeHttpTransport` 繧剃ｽｿ縺・∪縺吶・
 - `AppConfig`
-  - WiFi SSID、パスワード、API URL などの設定値を保持します。
+  - WiFi SSID縲√ヱ繧ｹ繝ｯ繝ｼ繝峨、PI URL 縺ｪ縺ｩ縺ｮ險ｭ螳壼､繧剃ｿ晄戟縺励∪縺吶・
 
-## 処理フロー
+## 蜃ｦ逅・ヵ繝ｭ繝ｼ
 
 - `setup()`
-  - `Serial` を初期化します。
-  - WiFi へ接続します。
-  - `TemperatureProvider` の実体として `DummyProvider` を設定します。
+  - `Serial` 繧貞・譛溷喧縺励∪縺吶・
+  - WiFi 縺ｸ謗･邯壹＠縺ｾ縺吶・
+  - `TemperatureProvider` 縺ｮ螳滉ｽ薙→縺励※ `DummyProvider` 繧定ｨｭ螳壹＠縺ｾ縺吶・
 - `loop()`
-  - `executeMeasurementCycle()` を実行します。
-  - 60 秒待機します。
+  - `executeMeasurementCycle()` 繧貞ｮ溯｡後＠縺ｾ縺吶・
+  - 60 遘貞ｾ・ｩ溘＠縺ｾ縺吶・
 - `executeMeasurementCycle()`
-  - `TemperatureProvider` から温度一覧を取得します。
-  - `ApiClient` へ渡して JSON 化し、API へ POST します。
+  - `TemperatureProvider` 縺九ｉ貂ｩ蠎ｦ荳隕ｧ繧貞叙蠕励＠縺ｾ縺吶・
+  - `ApiClient` 縺ｸ貂｡縺励※ JSON 蛹悶＠縲、PI 縺ｸ POST 縺励∪縺吶・
 
-## ディレクトリ構成
+## 繝・ぅ繝ｬ繧ｯ繝医Μ讒区・
 
 ```text
 lib/
-├─sender
-│  ├─include
-│  │  ├─ApiClient.h
-│  │  ├─ArduinoHttpTransport.h
-│  │  ├─HttpTransport.h
-│  │  └─NativeHttpTransport.h
-│  └─src
-│     ├─ApiClient.cpp
-│     ├─ArduinoHttpTransport.cpp
-│     └─NativeHttpTransport.cpp
-├─provider
-│  ├─include
-│  │  ├─TemperatureProvider.h
-│  │  └─DummyProvider.h
-│  └─src
-│     └─DummyProvider.cpp
-├─model
-│  └─include
-│     └─TemperatureData.h
-└─config
-   └─include
-      └─AppConfig.h
+笏懌楳sender
+笏・ 笏懌楳include
+笏・ 笏・ 笏懌楳ApiClient.h
+笏・ 笏・ 笏懌楳ArduinoHttpTransport.h
+笏・ 笏・ 笏懌楳HttpTransport.h
+笏・ 笏・ 笏披楳NativeHttpTransport.h
+笏・ 笏披楳src
+笏・    笏懌楳ApiClient.cpp
+笏・    笏懌楳ArduinoHttpTransport.cpp
+笏・    笏披楳NativeHttpTransport.cpp
+笏懌楳provider
+笏・ 笏懌楳include
+笏・ 笏・ 笏懌楳TemperatureProvider.h
+笏・ 笏・ 笏披楳DummyProvider.h
+笏・ 笏披楳src
+笏・    笏披楳DummyProvider.cpp
+笏懌楳model
+笏・ 笏披楳include
+笏・    笏披楳TemperatureData.h
+笏披楳config
+   笏披楳include
+      笏披楳AppConfig.h
 
 src/
-└─main.cpp
+笏披楳main.cpp
 ```
 
-## 設定
+## 險ｭ螳・
 
-`E:\dev\workspace\summertask2026\iot\lib\config\include\AppConfig.h` を実環境の値へ更新してください。
+`E:\dev\workspace\summertask2026\iot\lib\config\include\AppConfig.h` 繧貞ｮ溽腸蠅・・蛟､縺ｸ譖ｴ譁ｰ縺励※縺上□縺輔＞縲・
 
 - `WIFI_SSID`
 - `WIFI_PASSWORD`
 - `API_URL`
 
-設定例:
+險ｭ螳壻ｾ・
 
 ```cpp
 constexpr char WIFI_SSID[] = "your-ssid";
 constexpr char WIFI_PASSWORD[] = "your-password";
-constexpr char API_URL[] = "http://192.168.1.20:8000/temperatures";
+constexpr char API_URL[] = "http://192.168.1.20:8000/temperatures/bulk";
 ```
 
-`API_URL` に `localhost` や `127.0.0.1` を指定してよいのは Windows ローカルテストだけです。  
-UNO R4 実機から PC 上の API を叩く場合は、PC の LAN IP を指定してください。
+`API_URL` 縺ｫ `localhost` 繧・`127.0.0.1` 繧呈欠螳壹＠縺ｦ繧医＞縺ｮ縺ｯ Windows 繝ｭ繝ｼ繧ｫ繝ｫ繝・せ繝医□縺代〒縺吶・ 
+UNO R4 螳滓ｩ溘°繧・PC 荳翫・ API 繧貞娼縺丞ｴ蜷医・縲￣C 縺ｮ LAN IP 繧呈欠螳壹＠縺ｦ縺上□縺輔＞縲・
 
-## 実機実行手順
+## 螳滓ｩ溷ｮ溯｡梧焔鬆・
 
-1. `AppConfig.h` に WiFi と API の設定値を入れます。
-2. 受信先 API を起動します。
-3. PlatformIO で `uno_r4_wifi` 環境をビルド・書き込みします。
-4. シリアルモニタで以下を確認します。
-   - WiFi 接続成功
-   - IP アドレス取得
-   - HTTP ステータス
+1. `AppConfig.h` 縺ｫ WiFi 縺ｨ API 縺ｮ險ｭ螳壼､繧貞・繧後∪縺吶・
+2. 蜿嶺ｿ｡蜈・API 繧定ｵｷ蜍輔＠縺ｾ縺吶・
+3. PlatformIO 縺ｧ `uno_r4_wifi` 迺ｰ蠅・ｒ繝薙Ν繝峨・譖ｸ縺崎ｾｼ縺ｿ縺励∪縺吶・
+4. 繧ｷ繝ｪ繧｢繝ｫ繝｢繝九ち縺ｧ莉･荳九ｒ遒ｺ隱阪＠縺ｾ縺吶・
+   - WiFi 謗･邯壽・蜉・
+   - IP 繧｢繝峨Ξ繧ｹ蜿門ｾ・
+   - HTTP 繧ｹ繝・・繧ｿ繧ｹ
    - `Temperature send succeeded`
 
-送信される JSON は以下です。
+送信する JSON は次の形式です。
 
 ```json
-{
-  "temperatures": [
-    {
-      "sensor_id": "room",
-      "temperature": 25.0
-    },
-    {
-      "sensor_id": "outside",
-      "temperature": 18.0
-    },
-    {
-      "sensor_id": "fridge",
-      "temperature": 5.0
-    }
-  ]
-}
+[
+  {
+    "probe_id": "room",
+    "temperature": 25.0
+  },
+  {
+    "probe_id": "outside",
+    "temperature": 18.0
+  },
+  {
+    "probe_id": "fridge",
+    "temperature": 5.0
+  }
+]
 ```
 
-## ローカル接続テスト
+## 繝ｭ繝ｼ繧ｫ繝ｫ謗･邯壹ユ繧ｹ繝・
 
-### テスト前提
+### 繝・せ繝亥燕謠・
 
-Windows 上でローカル接続テストを実行するには、以下の環境が必要です。
+Windows 荳翫〒繝ｭ繝ｼ繧ｫ繝ｫ謗･邯壹ユ繧ｹ繝医ｒ螳溯｡後☆繧九↓縺ｯ縲∽ｻ･荳九・迺ｰ蠅・′蠢・ｦ√〒縺吶・
 
-- PlatformIO が利用できること
-  - 例: VS Code の PlatformIO 拡張、または `platformio` CLI
-- Windows から利用可能な C/C++ コンパイラが入っていること
-  - `native` 環境では `gcc` / `g++` が必要です
-  - 例: MSYS2 + MinGW-w64
-- `gcc` と `g++` に PATH が通っていること
-  - 確認例: `gcc --version`
-  - 確認例: `g++ --version`
-- VSCode のターミナル設定を使う場合は `.vscode/settings.json.sample` を `settings.json` にコピーして使います
+- PlatformIO 縺悟茜逕ｨ縺ｧ縺阪ｋ縺薙→
+  - 萓・ VS Code 縺ｮ PlatformIO 諡｡蠑ｵ縲√∪縺溘・ `platformio` CLI
+- Windows 縺九ｉ蛻ｩ逕ｨ蜿ｯ閭ｽ縺ｪ C/C++ 繧ｳ繝ｳ繝代う繝ｩ縺悟・縺｣縺ｦ縺・ｋ縺薙→
+  - `native` 迺ｰ蠅・〒縺ｯ `gcc` / `g++` 縺悟ｿ・ｦ√〒縺・
+  - 萓・ MSYS2 + MinGW-w64
+- `gcc` 縺ｨ `g++` 縺ｫ PATH 縺碁壹▲縺ｦ縺・ｋ縺薙→
+  - 遒ｺ隱堺ｾ・ `gcc --version`
+  - 遒ｺ隱堺ｾ・ `g++ --version`
+- VSCode 縺ｮ繧ｿ繝ｼ繝溘リ繝ｫ險ｭ螳壹ｒ菴ｿ縺・ｴ蜷医・ `.vscode/settings.json.sample` 繧・`settings.json` 縺ｫ繧ｳ繝斐・縺励※菴ｿ縺・∪縺・
 
-`winget` を使う場合の一例:
+`winget` 繧剃ｽｿ縺・ｴ蜷医・荳萓・
 
 ```powershell
 winget search msys2
 winget install --id MSYS2.MSYS2 -e
 ```
 
-MSYS2 導入後は、MSYS2 シェル上で `mingw-w64-ucrt-x86_64-gcc` を導入し、`g++` が Windows 側から見えるように PATH を設定してください。
+MSYS2 蟆主・蠕後・縲｀SYS2 繧ｷ繧ｧ繝ｫ荳翫〒 `mingw-w64-ucrt-x86_64-gcc` 繧貞ｰ主・縺励～g++` 縺・Windows 蛛ｴ縺九ｉ隕九∴繧九ｈ縺・↓ PATH 繧定ｨｭ螳壹＠縺ｦ縺上□縺輔＞縲・
 
-導入手順:
+蟆主・謇矩・
 
 ```powershell
 pacman -Sy
 pacman -S --needed mingw-w64-ucrt-x86_64-gcc
 ```
 
-更新要求が出た場合は、以下を先に実行します。
+譖ｴ譁ｰ隕∵ｱゅ′蜃ｺ縺溷ｴ蜷医・縲∽ｻ･荳九ｒ蜈医↓螳溯｡後＠縺ｾ縺吶・
 
 ```powershell
 pacman -Syu
 ```
 
-その場合はいったん MSYS2 シェルを閉じて再度開き、必要ならもう一度 `pacman -Syu` を実行してから、次を実行してください。
+縺昴・蝣ｴ蜷医・縺・▲縺溘ｓ MSYS2 繧ｷ繧ｧ繝ｫ繧帝哩縺倥※蜀榊ｺｦ髢九″縲∝ｿ・ｦ√↑繧峨ｂ縺・ｸ蠎ｦ `pacman -Syu` 繧貞ｮ溯｡後＠縺ｦ縺九ｉ縲∵ｬ｡繧貞ｮ溯｡後＠縺ｦ縺上□縺輔＞縲・
 
 ```powershell
 pacman -S --needed mingw-w64-ucrt-x86_64-gcc
 ```
 
-導入後は、Windows の PATH に通常以下を追加します。
+蟆主・蠕後・縲仝indows 縺ｮ PATH 縺ｫ騾壼ｸｸ莉･荳九ｒ霑ｽ蜉縺励∪縺吶・
 
 ```text
 C:\msys64\ucrt64\bin
 ```
 
-確認コマンド:
+遒ｺ隱阪さ繝槭Φ繝・
 
 ```powershell
 gcc --version
 g++ --version
 ```
 
-- `E:\dev\workspace\summertask2026\iot\test\test_native\test_main.cpp:1` は Windows 上でローカル HTTP サーバを起動し、`DummyProvider` と `NativeHttpTransport` を使って POST を検証します。
-- 実行想定は `platformio test -e native` です。
-- このテストでは以下を確認します。
-  - `DummyProvider` が 3 件返すこと
-  - `ApiClient` が期待どおりの JSON を生成すること
-  - ローカル HTTP サーバへ POST できること
+- `E:\dev\workspace\summertask2026\iot\test\test_native\test_main.cpp:1` 縺ｯ Windows 荳翫〒繝ｭ繝ｼ繧ｫ繝ｫ HTTP 繧ｵ繝ｼ繝舌ｒ襍ｷ蜍輔＠縲～DummyProvider` 縺ｨ `NativeHttpTransport` 繧剃ｽｿ縺｣縺ｦ POST 繧呈､懆ｨｼ縺励∪縺吶・
+- 螳溯｡梧Φ螳壹・ `platformio test -e native` 縺ｧ縺吶・
+- 縺薙・繝・せ繝医〒縺ｯ莉･荳九ｒ遒ｺ隱阪＠縺ｾ縺吶・
+  - `DummyProvider` 縺・3 莉ｶ霑斐☆縺薙→
+  - `ApiClient` 縺梧悄蠕・←縺翫ｊ縺ｮ JSON 繧堤函謌舌☆繧九％縺ｨ
+  - 繝ｭ繝ｼ繧ｫ繝ｫ HTTP 繧ｵ繝ｼ繝舌∈ POST 縺ｧ縺阪ｋ縺薙→
 
-## ローカルテストの限界
+## 繝ｭ繝ｼ繧ｫ繝ｫ繝・せ繝医・髯千阜
 
-Windows ローカルテストで確認できるのは、主に送信仕様です。
+Windows 繝ｭ繝ｼ繧ｫ繝ｫ繝・せ繝医〒遒ｺ隱阪〒縺阪ｋ縺ｮ縺ｯ縲∽ｸｻ縺ｫ騾∽ｿ｡莉墓ｧ倥〒縺吶・
 
-- 確認できるもの
-  - JSON の形式
-  - HTTP メソッド、ヘッダ、ボディ
-  - API がリクエストを受理できるか
-- 確認できないもの
-  - `WiFiS3` の接続挙動
-  - UNO R4 実機でのネットワーク安定性
-  - 実機固有のメモリ・タイミング問題
+- 遒ｺ隱阪〒縺阪ｋ繧ゅ・
+  - JSON 縺ｮ蠖｢蠑・
+  - HTTP 繝｡繧ｽ繝・ラ縲√・繝・ム縲√・繝・ぅ
+  - API 縺後Μ繧ｯ繧ｨ繧ｹ繝医ｒ蜿礼炊縺ｧ縺阪ｋ縺・
+- 遒ｺ隱阪〒縺阪↑縺・ｂ縺ｮ
+  - `WiFiS3` 縺ｮ謗･邯壽嫌蜍・
+  - UNO R4 螳滓ｩ溘〒縺ｮ繝阪ャ繝医Ρ繝ｼ繧ｯ螳牙ｮ壽ｧ
+  - 螳滓ｩ溷崋譛峨・繝｡繝｢繝ｪ繝ｻ繧ｿ繧､繝溘Φ繧ｰ蝠城｡・
 
-そのため、Windows ローカルテストは事前検証、UNO R4 実機テストは最終確認という位置づけです。
+縺昴・縺溘ａ縲仝indows 繝ｭ繝ｼ繧ｫ繝ｫ繝・せ繝医・莠句燕讀懆ｨｼ縲ゞNO R4 螳滓ｩ溘ユ繧ｹ繝医・譛邨ら｢ｺ隱阪→縺・≧菴咲ｽｮ縺･縺代〒縺吶・
 
-補足:
-- テストコード内で簡易 HTTP サーバを起動し、ApiClient の送信先として受けます
-- 外部 API を別プロセスで起動しなくても、送信内容をローカルで検証できます
+陬懆ｶｳ:
+- 繝・せ繝医さ繝ｼ繝牙・縺ｧ邁｡譏・HTTP 繧ｵ繝ｼ繝舌ｒ襍ｷ蜍輔＠縲、piClient 縺ｮ騾∽ｿ｡蜈医→縺励※蜿励￠縺ｾ縺・
+- 螟夜Κ API 繧貞挨繝励Ο繧ｻ繧ｹ縺ｧ襍ｷ蜍輔＠縺ｪ縺上※繧ゅ・∽ｿ｡蜀・ｮｹ繧偵Ο繝ｼ繧ｫ繝ｫ縺ｧ讀懆ｨｼ縺ｧ縺阪∪縺・
 
-## 将来拡張
+## 蟆・擂諡｡蠑ｵ
 
-将来 `DummyProvider` を `Ds18b20Provider` へ差し替える想定です。
+蟆・擂 `DummyProvider` 繧・`Ds18b20Provider` 縺ｸ蟾ｮ縺玲崛縺医ｋ諠ｳ螳壹〒縺吶・
 
-- `main.cpp` の処理フローは変更しません。
-- `ApiClient` の修正は不要です。
-- 温度取得の具体実装だけを `TemperatureProvider` 派生クラスとして追加します。
+- `main.cpp` 縺ｮ蜃ｦ逅・ヵ繝ｭ繝ｼ縺ｯ螟画峩縺励∪縺帙ｓ縲・
+- `ApiClient` 縺ｮ菫ｮ豁｣縺ｯ荳崎ｦ√〒縺吶・
+- 貂ｩ蠎ｦ蜿門ｾ励・蜈ｷ菴灘ｮ溯｣・□縺代ｒ `TemperatureProvider` 豢ｾ逕溘け繝ｩ繧ｹ縺ｨ縺励※霑ｽ蜉縺励∪縺吶・

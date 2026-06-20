@@ -75,6 +75,24 @@ async def create_temperature_log(
     return await BaseDefaultApi.subclasses[0]().create_temperature_log(temperature_create_request)
 
 
+@router.post(
+    "/temperatures/bulk",
+    responses={
+        201: {"model": List[TemperatureLog], "description": "Created"},
+        400: {"model": ErrorResponse, "description": "Invalid request"},
+    },
+    tags=["default"],
+    summary="Register multiple temperature readings",
+    response_model_by_alias=True,
+)
+async def create_temperature_logs(
+    temperature_create_request: List[TemperatureCreateRequest] = Body(None, description=""),
+) -> List[TemperatureLog]:
+    if not BaseDefaultApi.subclasses:
+        raise HTTPException(status_code=500, detail="Not implemented")
+    return await BaseDefaultApi.subclasses[0]().create_temperature_logs(temperature_create_request)
+
+
 @router.get(
     "/temperatures/latest/{probe_id}",
     responses={
