@@ -1,0 +1,18 @@
+
+このディレクトリは、PlatformIO のテストコード配置場所です。
+
+現在は Windows 上で実行するローカル接続テストを `test/test_native` 配下に配置しています。  
+このテストでは以下を確認します。
+
+- `DummyProvider` が期待どおりの 3 件を返すこと
+- `ApiClient` が正しい JSON を生成すること
+- ローカル HTTP サーバへ POST できること
+
+想定コマンドは以下です。
+
+```powershell
+platformio test -e native
+```
+
+このテストは送信仕様の確認が目的です。  
+UNO R4 WiFi 実機での WiFi 接続挙動までは検証しません。

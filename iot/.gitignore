@@ -1,0 +1,8 @@
+.pio
+.vscode/*
+!.vscode/settings.json.sample
+.vscode/settings.json
+*.code-workspace
+*.log
+*.o
+home/**

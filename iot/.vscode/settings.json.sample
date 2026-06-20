@@ -1,0 +1,10 @@
+{
+  "terminal.integrated.env.windows": {
+    "PATH": "C:\\msys64\\ucrt64\\bin;C:\\msys64\\usr\\bin;${env:PATH}",
+    "HOME": "E:\\dev\\workspace\\summertask2026\\iot\\home",
+    "USERPROFILE": "E:\\dev\\workspace\\summertask2026\\iot\\home",
+    "PLATFORMIO_SETTING_CORE_DIR": "E:\\dev\\workspace\\summertask2026\\iot\\home\\.platformio",
+    "PLATFORMIO_SETTING_CACHE_DIR": "E:\\dev\\workspace\\summertask2026\\iot\\home\\.platformio\\.cache",
+    "PLATFORMIO_SETTING_ENABLE_TELEMETRY": "false"
+  }
+}
