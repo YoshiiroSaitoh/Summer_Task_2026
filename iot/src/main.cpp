@@ -77,12 +77,24 @@ void setup()
 
     connectToWiFi();
 
+    if (AppConfig::WIFI_ONLY_TEST_MODE)
+    {
+        Serial.println("WiFi-only test mode enabled");
+        return;
+    }
+
     temperatureProvider = &dummyProvider;
     Serial.println("Temperature provider initialized");
 }
 
 void loop()
 {
+    if (AppConfig::WIFI_ONLY_TEST_MODE)
+    {
+        delay(AppConfig::LOOP_DELAY_MS);
+        return;
+    }
+
     executeMeasurementCycle();
 
     delay(AppConfig::LOOP_DELAY_MS);

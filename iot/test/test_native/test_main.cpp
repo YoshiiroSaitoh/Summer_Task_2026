@@ -4,6 +4,7 @@
 
 #include <chrono>
 #include <cstring>
+#include <cstdio>
 #include <string>
 #include <thread>
 #include <unity.h>
@@ -195,6 +196,7 @@ void test_api_client_posts_expected_json()
     server.stop();
 
     const std::string request = server.request();
+    std::printf("Captured request:\n%s\n", request.c_str());
     TEST_ASSERT_TRUE(request.find("POST /temperatures HTTP/1.1") != std::string::npos);
     TEST_ASSERT_TRUE(request.find("Content-Type: application/json") != std::string::npos);
     TEST_ASSERT_EQUAL_STRING(
