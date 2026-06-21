@@ -4,6 +4,7 @@
 #include <ApiClient.h>
 #include <AppConfig.h>
 #include <ArduinoHttpTransport.h>
+#include <DS18B20Provider.h>
 #include <DummyProvider.h>
 #include <Logger.h>
 #include <TemperatureProvider.h>
@@ -11,6 +12,7 @@
 namespace
 {
 DummyProvider dummyProvider;
+DS18B20Provider ds18b20Provider(AppConfig::DS18B20_PIN);
 TemperatureProvider *temperatureProvider = nullptr;
 ArduinoHttpTransport httpTransport;
 ApiClient apiClient(httpTransport);
@@ -138,8 +140,21 @@ void setup()
         return;
     }
 
-    temperatureProvider = &dummyProvider;
-    Logger::info("Temperature provider initialized");
+    switch (AppConfig::TEMPERATURE_PROVIDER_KIND)
+    {
+    case AppConfig::TemperatureProviderKind::Dummy:
+        temperatureProvider = &dummyProvider;
+        Logger::info("Temperature provider initialized: Dummy");
+        break;
+    case AppConfig::TemperatureProviderKind::Ds18b20:
+        temperatureProvider = &ds18b20Provider;
+        Logger::info("Temperature provider initialized: DS18B20");
+        break;
+    default:
+        temperatureProvider = &dummyProvider;
+        Logger::warn("Unknown temperature provider, falling back to Dummy");
+        break;
+    }
 }
 
 void loop()

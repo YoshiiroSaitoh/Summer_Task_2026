@@ -2,7 +2,9 @@
 
 #ifdef ARDUINO
 #include <Arduino.h>
+#include <Logger.h>
 #else
+#include <Logger.h>
 #include <random>
 #endif
 
@@ -30,6 +32,14 @@ float withVariation(float baseTemperature)
 {
     return baseTemperature + randomDelta();
 }
+
+void logTemperature(const TemperatureData &temperatureData)
+{
+    Logger::debugf(
+        "Temperature probe: %s = %.2f C",
+        temperatureData.sensorId.c_str(),
+        temperatureData.temperature);
+}
 }
 
 int DummyProvider::getTemperatures(
@@ -44,6 +54,11 @@ int DummyProvider::getTemperatures(
     data[0] = {"room", withVariation(25.0f)};
     data[1] = {"outside", withVariation(18.0f)};
     data[2] = {"fridge", withVariation(5.0f)};
+
+    for (int index = 0; index < 3; ++index)
+    {
+        logTemperature(data[index]);
+    }
 
     return 3;
 }
