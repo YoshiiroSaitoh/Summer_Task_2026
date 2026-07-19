@@ -2,11 +2,14 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+from sqlalchemy.exc import OperationalError
+
 from control.exception.temperature_not_found_exception import (
     TemperatureNotFoundException,
 )
 from dao.manager.db_connection_manager import DBConnectionManager
 from dao.model.temperature_log import TemperatureLog
+from dao.repository.experiment_probe_repository import ExperimentProbeRepository
 from dao.repository.temperature_log_repository import TemperatureLogRepository
 
 
@@ -16,6 +19,7 @@ class TemperatureControl:
     def __init__(self, connection_manager: DBConnectionManager) -> None:
         self._connection_manager = connection_manager
         self._repository = TemperatureLogRepository()
+        self._experiment_probe_repository = ExperimentProbeRepository()
 
     def register_temperature(
         self,
@@ -40,8 +44,14 @@ class TemperatureControl:
         self._validate_temperature(probe_id, effective_recorded_at, temperature)
         with self._connection_manager.get_session() as session:
             try:
+                active_assignment = self._find_active_assignment(
+                    session,
+                    probe_id,
+                    effective_recorded_at,
+                )
                 temperature_log = self._repository.insert(
                     session,
+                    experiment_id=None if active_assignment is None else active_assignment.experiment_id,
                     probe_id=probe_id,
                     recorded_at=effective_recorded_at,
                     temperature=temperature,
@@ -71,11 +81,11 @@ class TemperatureControl:
         with self._connection_manager.get_session() as session:
             try:
                 temperature_logs = [
-                    self._repository.insert(
+                    self._insert_temperature_log(
                         session,
-                        probe_id=probe_id,
-                        recorded_at=recorded_at,
-                        temperature=temperature,
+                        probe_id,
+                        recorded_at,
+                        temperature,
                     )
                     for probe_id, recorded_at, temperature in normalized_items
                 ]
@@ -84,6 +94,34 @@ class TemperatureControl:
             except Exception:
                 session.rollback()
                 raise
+
+    def _insert_temperature_log(
+        self,
+        session,
+        probe_id: str,
+        recorded_at: datetime,
+        temperature: float,
+    ) -> TemperatureLog:
+        active_assignment = self._find_active_assignment(session, probe_id, recorded_at)
+        return self._repository.insert(
+            session,
+            experiment_id=None if active_assignment is None else active_assignment.experiment_id,
+            probe_id=probe_id,
+            recorded_at=recorded_at,
+            temperature=temperature,
+        )
+
+    def _find_active_assignment(self, session, probe_id: str, recorded_at: datetime):
+        try:
+            return self._experiment_probe_repository.find_active_by_probe_id(
+                session,
+                probe_id,
+                recorded_at,
+            )
+        except OperationalError as exc:
+            if "experiment_probes" in str(exc):
+                return None
+            raise
 
     def get_latest_temperature(self, probe_id: str) -> TemperatureLog:
         """Gets the latest temperature log for a probe.

@@ -11,6 +11,7 @@ temperature_logs = Table(
     "temperature_logs",
     metadata,
     Column("id", BigInteger().with_variant(Integer, "sqlite"), primary_key=True),
+    Column("experiment_id", BigInteger().with_variant(Integer, "sqlite"), nullable=True),
     Column("probe_id", String(64), nullable=False),
     Column("recorded_at", DateTime(timezone=True), nullable=False),
     Column("temperature", Numeric(5, 2), nullable=False),
@@ -22,6 +23,7 @@ class TemperatureLog:
     """Represents a temperature reading persisted in the database."""
 
     id: int | None
+    experiment_id: int | None
     probe_id: str
     recorded_at: datetime
     temperature: float

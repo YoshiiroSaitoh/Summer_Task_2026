@@ -3,9 +3,13 @@
 from typing import ClassVar, Dict, List, Tuple  # noqa: F401
 
 from datetime import datetime
-from pydantic import StrictStr
+from pydantic import StrictInt, StrictStr
 from typing import List, Optional
 from api.generated.models.error_response import ErrorResponse
+from api.generated.models.experiment import Experiment
+from api.generated.models.experiment_create_request import ExperimentCreateRequest
+from api.generated.models.experiment_probe import ExperimentProbe
+from api.generated.models.experiment_probe_create_request import ExperimentProbeCreateRequest
 from api.generated.models.temperature_create_request import TemperatureCreateRequest
 from api.generated.models.temperature_log import TemperatureLog
 
@@ -43,4 +47,59 @@ class BaseDefaultApi:
         self,
         probe_id: StrictStr,
     ) -> TemperatureLog:
+        ...
+
+
+    async def list_experiments(
+        self,
+    ) -> List[Experiment]:
+        ...
+
+
+    async def create_experiment(
+        self,
+        experiment_create_request: ExperimentCreateRequest,
+    ) -> Experiment:
+        ...
+
+
+    async def get_current_experiment(
+        self,
+    ) -> Experiment:
+        ...
+
+
+    async def get_experiment(
+        self,
+        experiment_id: StrictInt,
+    ) -> Experiment:
+        ...
+
+
+    async def start_experiment(
+        self,
+        experiment_id: StrictInt,
+    ) -> Experiment:
+        ...
+
+
+    async def end_experiment(
+        self,
+        experiment_id: StrictInt,
+    ) -> Experiment:
+        ...
+
+
+    async def list_experiment_probes(
+        self,
+        experiment_id: StrictInt,
+    ) -> List[ExperimentProbe]:
+        ...
+
+
+    async def add_experiment_probe(
+        self,
+        experiment_id: StrictInt,
+        experiment_probe_create_request: ExperimentProbeCreateRequest,
+    ) -> ExperimentProbe:
         ...

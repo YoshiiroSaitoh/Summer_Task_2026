@@ -19,10 +19,12 @@ class TemperatureLogRepository:
         probe_id: str,
         recorded_at: datetime,
         temperature: float,
+        experiment_id: int | None = None,
     ) -> TemperatureLog:
         """Inserts a temperature log and returns the persisted entity."""
         try:
             statement = insert(temperature_logs).values(
+                experiment_id=experiment_id,
                 probe_id=probe_id,
                 recorded_at=recorded_at,
                 temperature=temperature,
@@ -32,6 +34,7 @@ class TemperatureLogRepository:
             row = session.execute(
                 select(
                     temperature_logs.c.id,
+                    temperature_logs.c.experiment_id,
                     temperature_logs.c.probe_id,
                     temperature_logs.c.recorded_at,
                     temperature_logs.c.temperature,
@@ -50,6 +53,7 @@ class TemperatureLogRepository:
         statement = (
             select(
                 temperature_logs.c.id,
+                temperature_logs.c.experiment_id,
                 temperature_logs.c.probe_id,
                 temperature_logs.c.recorded_at,
                 temperature_logs.c.temperature,
@@ -71,8 +75,9 @@ class TemperatureLogRepository:
         end_at: datetime | None,
     ) -> Sequence[TemperatureLog]:
         """Returns temperature logs filtered by probe identifier and time range."""
-        statement: Select[tuple[int, str, datetime, float]] = select(
+        statement: Select[tuple[int, int | None, str, datetime, float]] = select(
             temperature_logs.c.id,
+            temperature_logs.c.experiment_id,
             temperature_logs.c.probe_id,
             temperature_logs.c.recorded_at,
             temperature_logs.c.temperature,
@@ -92,6 +97,7 @@ class TemperatureLogRepository:
     def _to_domain(self, row: dict[str, object]) -> TemperatureLog:
         return TemperatureLog(
             id=int(row["id"]),
+            experiment_id=None if row["experiment_id"] is None else int(row["experiment_id"]),
             probe_id=str(row["probe_id"]),
             recorded_at=row["recorded_at"],
             temperature=float(row["temperature"]),

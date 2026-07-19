@@ -7,6 +7,12 @@ from api.generated.apis.default_api import router as generated_router
 from api.generated.models.error_response import ErrorResponse
 from api.impl.default_api_impl import DefaultApiImpl  # noqa: F401
 from control.exception.business_exception import BusinessException
+from control.exception.experiment_not_found_exception import (
+    ExperimentNotFoundException,
+)
+from control.exception.experiment_state_conflict_exception import (
+    ExperimentStateConflictException,
+)
 from control.exception.temperature_not_found_exception import (
     TemperatureNotFoundException,
 )
@@ -45,6 +51,28 @@ async def temperature_not_found_exception_handler(
 
     return JSONResponse(
         status_code=404,
+        content=ErrorResponse(message=str(exc)).model_dump(by_alias=True),
+    )
+
+
+@app.exception_handler(ExperimentNotFoundException)
+async def experiment_not_found_exception_handler(
+    request: Request,
+    exc: ExperimentNotFoundException,
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=404,
+        content=ErrorResponse(message=str(exc)).model_dump(by_alias=True),
+    )
+
+
+@app.exception_handler(ExperimentStateConflictException)
+async def experiment_state_conflict_exception_handler(
+    request: Request,
+    exc: ExperimentStateConflictException,
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=409,
         content=ErrorResponse(message=str(exc)).model_dump(by_alias=True),
     )
 
