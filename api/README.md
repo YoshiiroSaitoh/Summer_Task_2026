@@ -101,3 +101,4 @@ uvicorn main:app --reload
 - `pyproject.toml` で依存関係とビルド設定を管理します
 - `requirements.txt` はこの構成では不要です
 - 生成コードは `src/api/generated` に置き、直接編集しません
+- OpenAPI の正本は `openapi/swagger.yaml` です。`openapi.yaml` は参照しません。

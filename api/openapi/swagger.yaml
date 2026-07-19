@@ -114,6 +114,219 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
           description: Not found
       summary: Get the latest temperature reading
+  /experiments:
+    get:
+      operationId: listExperiments
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/Experiment"
+                type: array
+          description: OK
+      summary: List experiments
+    post:
+      operationId: createExperiment
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExperimentCreateRequest"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Experiment"
+          description: Created
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid request
+      summary: Create a new experiment
+  /experiments/current:
+    get:
+      operationId: getCurrentExperiment
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Experiment"
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found
+      summary: Get the current experiment
+  /experiments/{experiment_id}:
+    get:
+      operationId: getExperiment
+      parameters:
+      - explode: false
+        in: path
+        name: experiment_id
+        required: true
+        schema:
+          format: int64
+          type: integer
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Experiment"
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found
+      summary: Get an experiment
+  /experiments/{experiment_id}/start:
+    post:
+      operationId: startExperiment
+      parameters:
+      - explode: false
+        in: path
+        name: experiment_id
+        required: true
+        schema:
+          format: int64
+          type: integer
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Experiment"
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid state
+      summary: Start an experiment
+  /experiments/{experiment_id}/end:
+    post:
+      operationId: endExperiment
+      parameters:
+      - explode: false
+        in: path
+        name: experiment_id
+        required: true
+        schema:
+          format: int64
+          type: integer
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Experiment"
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid state
+      summary: End an experiment
+  /experiments/{experiment_id}/probes:
+    get:
+      operationId: listExperimentProbes
+      parameters:
+      - explode: false
+        in: path
+        name: experiment_id
+        required: true
+        schema:
+          format: int64
+          type: integer
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/ExperimentProbe"
+                type: array
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found
+      summary: List probes assigned to an experiment
+    post:
+      operationId: addExperimentProbe
+      parameters:
+      - explode: false
+        in: path
+        name: experiment_id
+        required: true
+        schema:
+          format: int64
+          type: integer
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExperimentProbeCreateRequest"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExperimentProbe"
+          description: Created
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Conflict
+      summary: Assign a probe to an experiment
 components:
   schemas:
     TemperatureLog:
@@ -170,6 +383,137 @@ components:
         $ref: "#/components/schemas/TemperatureCreateRequest"
       title: TemperatureCreateRequests
       type: array
+    Experiment:
+      example:
+        ended_at: 2000-01-23T04:56:07.000+00:00
+        created_at: 2000-01-23T04:56:07.000+00:00
+        name: Experiment 001
+        updated_at: 2000-01-23T04:56:07.000+00:00
+        started_at: 2000-01-23T04:56:07.000+00:00
+        status: running
+        id: 0
+      properties:
+        id:
+          format: int64
+          title: id
+          type: integer
+        name:
+          title: name
+          type: string
+        status:
+          enum:
+          - planned
+          - running
+          - finished
+          title: status
+          type: string
+        started_at:
+          format: date-time
+          title: started_at
+          type: string
+        ended_at:
+          format: date-time
+          title: ended_at
+          type: string
+        created_at:
+          format: date-time
+          title: created_at
+          type: string
+        updated_at:
+          format: date-time
+          title: updated_at
+          type: string
+      required:
+      - id
+      - name
+      - status
+      - created_at
+      - updated_at
+      title: Experiment
+    ExperimentCreateRequest:
+      example:
+        name: Experiment 001
+      properties:
+        name:
+          title: name
+          type: string
+      required:
+      - name
+      title: ExperimentCreateRequest
+    ExperimentProbe:
+      example:
+        valid_to: 2000-01-23T04:56:07.000+00:00
+        created_at: 2000-01-23T04:56:07.000+00:00
+        probe_id: probe-a
+        experiment_id: 0
+        updated_at: 2000-01-23T04:56:07.000+00:00
+        role: target
+        valid_from: 2000-01-23T04:56:07.000+00:00
+        id: 0
+      properties:
+        id:
+          format: int64
+          title: id
+          type: integer
+        experiment_id:
+          format: int64
+          title: experiment_id
+          type: integer
+        probe_id:
+          title: probe_id
+          type: string
+        role:
+          title: role
+          type: string
+        valid_from:
+          format: date-time
+          title: valid_from
+          type: string
+        valid_to:
+          format: date-time
+          title: valid_to
+          type: string
+        created_at:
+          format: date-time
+          title: created_at
+          type: string
+        updated_at:
+          format: date-time
+          title: updated_at
+          type: string
+      required:
+      - id
+      - experiment_id
+      - probe_id
+      - role
+      - created_at
+      - updated_at
+      title: ExperimentProbe
+    ExperimentProbeCreateRequest:
+      example:
+        probe_id: probe-a
+        role: target
+        valid_from: 2000-01-23T04:56:07.000+00:00
+        valid_to: 2000-01-23T04:56:07.000+00:00
+      properties:
+        probe_id:
+          title: probe_id
+          type: string
+        role:
+          title: role
+          type: string
+        valid_from:
+          format: date-time
+          title: valid_from
+          type: string
+        valid_to:
+          format: date-time
+          title: valid_to
+          type: string
+      required:
+      - probe_id
+      - role
+      title: ExperimentProbeCreateRequest
     ErrorResponse:
       example:
         message: message
