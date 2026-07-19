@@ -1,6 +1,7 @@
 #ifndef DS18B20_PROVIDER_H
 #define DS18B20_PROVIDER_H
 
+#include <AppConfig.h>
 #include <TemperatureProvider.h>
 
 #include <cstdint>
@@ -16,8 +17,10 @@ public:
 
 private:
     uint8_t pin_;
-    String probeId_;
-    bool probeIdInitialized_;
+    uint8_t probeRoms_[AppConfig::MAX_TEMPERATURE_COUNT][8];
+    String probeIds_[AppConfig::MAX_TEMPERATURE_COUNT];
+    int probeCount_;
+    bool probesInitialized_;
 };
 
 #endif
