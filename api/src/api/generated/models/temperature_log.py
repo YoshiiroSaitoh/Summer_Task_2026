@@ -22,7 +22,7 @@ import json
 
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict, StrictFloat, StrictInt, StrictStr
-from typing import Any, ClassVar, Dict, List, Union
+from typing import Any, ClassVar, Dict, List, Optional, Union
 try:
     from typing import Self
 except ImportError:
@@ -33,10 +33,21 @@ class TemperatureLog(BaseModel):
     TemperatureLog
     """ # noqa: E501
     id: StrictInt
+    experiment_id: Optional[StrictInt] = None
+    experiment_run_id: Optional[StrictInt] = None
     probe_id: StrictStr
     recorded_at: datetime
+    elapsed_seconds: Optional[StrictFloat] = None
     temperature: Union[StrictFloat, StrictInt]
-    __properties: ClassVar[List[str]] = ["id", "probe_id", "recorded_at", "temperature"]
+    __properties: ClassVar[List[str]] = [
+        "id",
+        "experiment_id",
+        "experiment_run_id",
+        "probe_id",
+        "recorded_at",
+        "elapsed_seconds",
+        "temperature",
+    ]
 
     model_config = {
         "populate_by_name": True,
@@ -88,10 +99,12 @@ class TemperatureLog(BaseModel):
 
         _obj = cls.model_validate({
             "id": obj.get("id"),
+            "experiment_id": obj.get("experiment_id"),
+            "experiment_run_id": obj.get("experiment_run_id"),
             "probe_id": obj.get("probe_id"),
             "recorded_at": obj.get("recorded_at"),
+            "elapsed_seconds": obj.get("elapsed_seconds"),
             "temperature": obj.get("temperature")
         })
         return _obj
-
 

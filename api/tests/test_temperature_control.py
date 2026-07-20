@@ -8,7 +8,8 @@ from sqlalchemy.orm import Session
 
 import control.temperature_control as temperature_control_module
 from control.temperature_control import TemperatureControl
-from dao.model.temperature_log import metadata
+from dao.model.probe import metadata as probe_metadata
+from dao.model.temperature_log import metadata as temperature_metadata
 
 
 class SQLiteConnectionManager:
@@ -29,7 +30,8 @@ def normalize_to_utc(datetime_value: datetime) -> datetime:
 
 def test_register_temperature_uses_current_time_when_missing_recorded_at() -> None:
     engine = create_engine("sqlite+pysqlite:///:memory:")
-    metadata.create_all(engine)
+    probe_metadata.create_all(engine)
+    temperature_metadata.create_all(engine)
     control = TemperatureControl(SQLiteConnectionManager(engine))
     fixed_now = datetime(2026, 6, 8, 12, 34, 56, tzinfo=timezone.utc)
 
@@ -50,11 +52,15 @@ def test_register_temperature_uses_current_time_when_missing_recorded_at() -> No
         temperature_control_module.datetime = original_datetime
 
     assert normalize_to_utc(temperature_log.recorded_at) == fixed_now
+    with Session(engine) as session:
+        rows = session.execute(probe_metadata.tables["probes"].select()).mappings().all()
+    assert [row["probe_id"] for row in rows] == ["probe-a"]
 
 
 def test_register_temperatures_uses_current_time_when_missing_recorded_at() -> None:
     engine = create_engine("sqlite+pysqlite:///:memory:")
-    metadata.create_all(engine)
+    probe_metadata.create_all(engine)
+    temperature_metadata.create_all(engine)
     control = TemperatureControl(SQLiteConnectionManager(engine))
     fixed_now = datetime(2026, 6, 8, 12, 34, 56, tzinfo=timezone.utc)
 
@@ -79,3 +85,6 @@ def test_register_temperatures_uses_current_time_when_missing_recorded_at() -> N
         fixed_now,
         fixed_now,
     ]
+    with Session(engine) as session:
+        rows = session.execute(probe_metadata.tables["probes"].select()).mappings().all()
+    assert [row["probe_id"] for row in rows] == ["probe-a", "probe-b"]

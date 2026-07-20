@@ -31,6 +31,9 @@ from api.generated.models.experiment import Experiment
 from api.generated.models.experiment_create_request import ExperimentCreateRequest
 from api.generated.models.experiment_probe import ExperimentProbe
 from api.generated.models.experiment_probe_create_request import ExperimentProbeCreateRequest
+from api.generated.models.experiment_run import ExperimentRun
+from api.generated.models.experiment_run_create_request import ExperimentRunCreateRequest
+from api.generated.models.probe import Probe
 from api.generated.models.temperature_create_request import TemperatureCreateRequest
 from api.generated.models.temperature_log import TemperatureLog
 
@@ -113,6 +116,42 @@ async def get_latest_temperature_log(
     if not BaseDefaultApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
     return await BaseDefaultApi.subclasses[0]().get_latest_temperature_log(probe_id)
+
+
+@router.get(
+    "/probes",
+    responses={
+        200: {"model": List[Probe], "description": "OK"},
+    },
+    tags=["default"],
+    summary="List probes",
+    response_model_by_alias=True,
+)
+async def list_probes(
+) -> List[Probe]:
+    if not BaseDefaultApi.subclasses:
+        raise HTTPException(status_code=500, detail="Not implemented")
+    return await BaseDefaultApi.subclasses[0]().list_probes()
+
+
+@router.delete(
+    "/probes/{probe_id}",
+    responses={
+        204: {"description": "Deleted"},
+        404: {"model": ErrorResponse, "description": "Not found"},
+    },
+    tags=["default"],
+    summary="Delete a probe",
+    response_model_by_alias=True,
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_probe(
+    probe_id: StrictStr = Path(..., description=""),
+) -> None:
+    if not BaseDefaultApi.subclasses:
+        raise HTTPException(status_code=500, detail="Not implemented")
+    await BaseDefaultApi.subclasses[0]().delete_probe(probe_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get(
@@ -259,3 +298,80 @@ async def add_experiment_probe(
     if not BaseDefaultApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
     return await BaseDefaultApi.subclasses[0]().add_experiment_probe(experiment_id, experiment_probe_create_request)
+
+
+@router.get(
+    "/experiments/{experiment_id}/runs",
+    responses={
+        200: {"model": List[ExperimentRun], "description": "OK"},
+        404: {"model": ErrorResponse, "description": "Not found"},
+    },
+    tags=["default"],
+    summary="List runs assigned to an experiment",
+    response_model_by_alias=True,
+)
+async def list_experiment_runs(
+    experiment_id: StrictInt = Path(..., description=""),
+) -> List[ExperimentRun]:
+    if not BaseDefaultApi.subclasses:
+        raise HTTPException(status_code=500, detail="Not implemented")
+    return await BaseDefaultApi.subclasses[0]().list_experiment_runs(experiment_id)
+
+
+@router.post(
+    "/experiments/{experiment_id}/runs",
+    responses={
+        201: {"model": ExperimentRun, "description": "Created"},
+        400: {"model": ErrorResponse, "description": "Invalid request"},
+        404: {"model": ErrorResponse, "description": "Not found"},
+        409: {"model": ErrorResponse, "description": "Conflict"},
+    },
+    tags=["default"],
+    summary="Create a run for an experiment",
+    response_model_by_alias=True,
+)
+async def create_experiment_run(
+    experiment_id: StrictInt = Path(..., description=""),
+    experiment_run_create_request: ExperimentRunCreateRequest = Body(None, description=""),
+) -> ExperimentRun:
+    if not BaseDefaultApi.subclasses:
+        raise HTTPException(status_code=500, detail="Not implemented")
+    return await BaseDefaultApi.subclasses[0]().create_experiment_run(experiment_id, experiment_run_create_request)
+
+
+@router.get(
+    "/experiments/{experiment_id}/runs/current",
+    responses={
+        200: {"model": ExperimentRun, "description": "OK"},
+        404: {"model": ErrorResponse, "description": "Not found"},
+    },
+    tags=["default"],
+    summary="Get the current run for an experiment",
+    response_model_by_alias=True,
+)
+async def get_current_experiment_run(
+    experiment_id: StrictInt = Path(..., description=""),
+) -> ExperimentRun:
+    if not BaseDefaultApi.subclasses:
+        raise HTTPException(status_code=500, detail="Not implemented")
+    return await BaseDefaultApi.subclasses[0]().get_current_experiment_run(experiment_id)
+
+
+@router.post(
+    "/experiments/{experiment_id}/runs/{run_id}/end",
+    responses={
+        200: {"model": ExperimentRun, "description": "OK"},
+        404: {"model": ErrorResponse, "description": "Not found"},
+        409: {"model": ErrorResponse, "description": "Conflict"},
+    },
+    tags=["default"],
+    summary="End a run",
+    response_model_by_alias=True,
+)
+async def end_experiment_run(
+    experiment_id: StrictInt = Path(..., description=""),
+    run_id: StrictInt = Path(..., description=""),
+) -> ExperimentRun:
+    if not BaseDefaultApi.subclasses:
+        raise HTTPException(status_code=500, detail="Not implemented")
+    return await BaseDefaultApi.subclasses[0]().end_experiment_run(experiment_id, run_id)

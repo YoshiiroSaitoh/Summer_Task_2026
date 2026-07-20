@@ -10,10 +10,17 @@ from api.generated.models.experiment_probe import ExperimentProbe as GeneratedEx
 from api.generated.models.experiment_probe_create_request import (
     ExperimentProbeCreateRequest,
 )
+from api.generated.models.experiment_run import ExperimentRun as GeneratedExperimentRun
+from api.generated.models.experiment_run_create_request import (
+    ExperimentRunCreateRequest,
+)
+from api.generated.models.probe import Probe as GeneratedProbe
 from api.generated.models.temperature_create_request import TemperatureCreateRequest
 from api.generated.models.temperature_log import TemperatureLog as GeneratedTemperatureLog
 from api.impl.base_api_impl import BaseApiImpl
 from control.experiment_control import ExperimentControl
+from control.experiment_run_control import ExperimentRunControl
+from control.probe_control import ProbeControl
 from control.temperature_control import TemperatureControl
 from dao.manager.postgresql_manager_impl import PostgreSQLManagerImpl
 
@@ -29,6 +36,8 @@ class DefaultApiImpl(BaseApiImpl, BaseDefaultApi):
         )
         connection_manager = PostgreSQLManagerImpl(database_url)
         self._experiment_control = ExperimentControl(connection_manager)
+        self._experiment_run_control = ExperimentRunControl(connection_manager)
+        self._probe_control = ProbeControl(connection_manager)
         self._control = TemperatureControl(connection_manager)
 
     async def list_temperature_logs(
@@ -85,6 +94,17 @@ class DefaultApiImpl(BaseApiImpl, BaseDefaultApi):
         temperature_log = self._control.get_latest_temperature(probe_id)
         self.log_response(200)
         return self._to_generated_temperature_log(temperature_log)
+
+    async def list_probes(self) -> list[GeneratedProbe]:
+        self.log_request("GET", "/probes")
+        probes = self._probe_control.list_probes()
+        self.log_response(200)
+        return [self._to_generated_probe(probe) for probe in probes]
+
+    async def delete_probe(self, probe_id: str) -> None:
+        self.log_request("DELETE", f"/probes/{probe_id}")
+        self._probe_control.delete_probe(probe_id)
+        self.log_response(204)
 
     async def list_experiments(self) -> list[GeneratedExperiment]:
         self.log_request("GET", "/experiments")
@@ -147,6 +167,37 @@ class DefaultApiImpl(BaseApiImpl, BaseDefaultApi):
         self.log_response(201)
         return self._to_generated_experiment_probe(experiment_probe)
 
+    async def list_experiment_runs(self, experiment_id: int) -> list[GeneratedExperimentRun]:
+        self.log_request("GET", f"/experiments/{experiment_id}/runs")
+        experiment_runs = self._experiment_run_control.list_experiment_runs(experiment_id)
+        self.log_response(200)
+        return [self._to_generated_experiment_run(experiment_run) for experiment_run in experiment_runs]
+
+    async def create_experiment_run(
+        self,
+        experiment_id: int,
+        experiment_run_create_request: ExperimentRunCreateRequest,
+    ) -> GeneratedExperimentRun:
+        self.log_request("POST", f"/experiments/{experiment_id}/runs")
+        experiment_run = self._experiment_run_control.create_experiment_run(
+            experiment_id,
+            experiment_run_create_request.label,
+        )
+        self.log_response(201)
+        return self._to_generated_experiment_run(experiment_run)
+
+    async def get_current_experiment_run(self, experiment_id: int) -> GeneratedExperimentRun:
+        self.log_request("GET", f"/experiments/{experiment_id}/runs/current")
+        experiment_run = self._experiment_run_control.get_current_experiment_run(experiment_id)
+        self.log_response(200)
+        return self._to_generated_experiment_run(experiment_run)
+
+    async def end_experiment_run(self, experiment_id: int, run_id: int) -> GeneratedExperimentRun:
+        self.log_request("POST", f"/experiments/{experiment_id}/runs/{run_id}/end")
+        experiment_run = self._experiment_run_control.end_experiment_run(experiment_id, run_id)
+        self.log_response(200)
+        return self._to_generated_experiment_run(experiment_run)
+
     def _to_generated_temperature_log(
         self,
         temperature_log,
@@ -179,4 +230,24 @@ class DefaultApiImpl(BaseApiImpl, BaseDefaultApi):
             valid_to=experiment_probe.valid_to,
             created_at=experiment_probe.created_at,
             updated_at=experiment_probe.updated_at,
+        )
+
+    def _to_generated_probe(self, probe) -> GeneratedProbe:
+        return GeneratedProbe(
+            id=probe.id,
+            probe_id=probe.probe_id,
+            deleted_at=probe.deleted_at,
+            created_at=probe.created_at,
+            updated_at=probe.updated_at,
+        )
+
+    def _to_generated_experiment_run(self, experiment_run) -> GeneratedExperimentRun:
+        return GeneratedExperimentRun(
+            id=experiment_run.id,
+            experiment_id=experiment_run.experiment_id,
+            label=experiment_run.label,
+            started_at=experiment_run.started_at,
+            ended_at=experiment_run.ended_at,
+            created_at=experiment_run.created_at,
+            updated_at=experiment_run.updated_at,
         )

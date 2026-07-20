@@ -10,6 +10,9 @@ from api.generated.models.experiment import Experiment
 from api.generated.models.experiment_create_request import ExperimentCreateRequest
 from api.generated.models.experiment_probe import ExperimentProbe
 from api.generated.models.experiment_probe_create_request import ExperimentProbeCreateRequest
+from api.generated.models.experiment_run import ExperimentRun
+from api.generated.models.experiment_run_create_request import ExperimentRunCreateRequest
+from api.generated.models.probe import Probe
 from api.generated.models.temperature_create_request import TemperatureCreateRequest
 from api.generated.models.temperature_log import TemperatureLog
 
@@ -47,6 +50,19 @@ class BaseDefaultApi:
         self,
         probe_id: StrictStr,
     ) -> TemperatureLog:
+        ...
+
+
+    async def list_probes(
+        self,
+    ) -> List[Probe]:
+        ...
+
+
+    async def delete_probe(
+        self,
+        probe_id: StrictStr,
+    ) -> None:
         ...
 
 
@@ -102,4 +118,34 @@ class BaseDefaultApi:
         experiment_id: StrictInt,
         experiment_probe_create_request: ExperimentProbeCreateRequest,
     ) -> ExperimentProbe:
+        ...
+
+
+    async def list_experiment_runs(
+        self,
+        experiment_id: StrictInt,
+    ) -> List[ExperimentRun]:
+        ...
+
+
+    async def create_experiment_run(
+        self,
+        experiment_id: StrictInt,
+        experiment_run_create_request: ExperimentRunCreateRequest,
+    ) -> ExperimentRun:
+        ...
+
+
+    async def get_current_experiment_run(
+        self,
+        experiment_id: StrictInt,
+    ) -> ExperimentRun:
+        ...
+
+
+    async def end_experiment_run(
+        self,
+        experiment_id: StrictInt,
+        run_id: StrictInt,
+    ) -> ExperimentRun:
         ...

@@ -114,6 +114,40 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
           description: Not found
       summary: Get the latest temperature reading
+  /probes:
+    get:
+      operationId: listProbes
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/Probe"
+                type: array
+          description: OK
+      summary: List probes
+  /probes/{probe_id}:
+    delete:
+      operationId: deleteProbe
+      parameters:
+      - explode: false
+        in: path
+        name: probe_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found
+      summary: Delete a probe
   /experiments:
     get:
       operationId: listExperiments
@@ -514,6 +548,39 @@ components:
       - probe_id
       - role
       title: ExperimentProbeCreateRequest
+    Probe:
+      example:
+        created_at: 2000-01-23T04:56:07.000+00:00
+        probe_id: probe-a
+        deleted_at: 2000-01-23T04:56:07.000+00:00
+        updated_at: 2000-01-23T04:56:07.000+00:00
+        id: 0
+      properties:
+        id:
+          format: int64
+          title: id
+          type: integer
+        probe_id:
+          title: probe_id
+          type: string
+        deleted_at:
+          format: date-time
+          title: deleted_at
+          type: string
+        created_at:
+          format: date-time
+          title: created_at
+          type: string
+        updated_at:
+          format: date-time
+          title: updated_at
+          type: string
+      required:
+      - created_at
+      - id
+      - probe_id
+      - updated_at
+      title: Probe
     ErrorResponse:
       example:
         message: message
