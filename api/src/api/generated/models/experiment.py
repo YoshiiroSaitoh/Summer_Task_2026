@@ -34,18 +34,21 @@ class Experiment(BaseModel):
     """ # noqa: E501
     id: StrictInt
     name: StrictStr
+    description: Optional[StrictStr] = None
     status: StrictStr
     started_at: Optional[datetime] = None
     ended_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    archived_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
-    __properties: ClassVar[List[str]] = ["id", "name", "status", "started_at", "ended_at", "created_at", "updated_at"]
+    __properties: ClassVar[List[str]] = ["id", "name", "description", "status", "started_at", "ended_at", "completed_at", "archived_at", "created_at", "updated_at"]
 
     @field_validator('status')
     def status_validate_enum(cls, value):
         """Validates the enum"""
-        if value not in ('planned', 'running', 'finished',):
-            raise ValueError("must be one of enum values ('planned', 'running', 'finished')")
+        if value not in ('planned', 'running', 'completed', 'archived', 'finished',):
+            raise ValueError("must be one of enum values ('planned', 'running', 'completed', 'archived', 'finished')")
         return value
 
     model_config = {
@@ -99,12 +102,14 @@ class Experiment(BaseModel):
         _obj = cls.model_validate({
             "id": obj.get("id"),
             "name": obj.get("name"),
+            "description": obj.get("description"),
             "status": obj.get("status"),
             "started_at": obj.get("started_at"),
             "ended_at": obj.get("ended_at"),
+            "completed_at": obj.get("completed_at"),
+            "archived_at": obj.get("archived_at"),
             "created_at": obj.get("created_at"),
             "updated_at": obj.get("updated_at")
         })
         return _obj
-
 

@@ -1,11 +1,14 @@
-export type ExperimentStatus = 'planned' | 'running' | 'finished';
+export type ExperimentStatus = 'planned' | 'running' | 'completed' | 'archived' | 'finished';
 
 export interface Experiment {
   id: number;
   name: string;
+  description: string | null;
   status: ExperimentStatus;
   started_at: string | null;
   ended_at: string | null;
+  completed_at: string | null;
+  archived_at: string | null;
   created_at: string;
   updated_at: string;
 }

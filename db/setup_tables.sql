@@ -13,9 +13,12 @@ CREATE TABLE IF NOT EXISTS temperature_logs (
 CREATE TABLE IF NOT EXISTS experiments (
     id BIGSERIAL PRIMARY KEY,
     name VARCHAR(128) NOT NULL,
+    description VARCHAR(512) NULL,
     status VARCHAR(32) NOT NULL,
     started_at TIMESTAMPTZ NULL,
     ended_at TIMESTAMPTZ NULL,
+    completed_at TIMESTAMPTZ NULL,
+    archived_at TIMESTAMPTZ NULL,
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL
 );
@@ -49,8 +52,17 @@ CREATE TABLE IF NOT EXISTS experiment_runs (
     updated_at TIMESTAMPTZ NOT NULL
 );
 
+-- Keep existing development volumes compatible when columns are added.
+ALTER TABLE experiments
+    ADD COLUMN IF NOT EXISTS description VARCHAR(512) NULL,
+    ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ NULL,
+    ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ NULL;
+
 CREATE INDEX IF NOT EXISTS idx_experiments_status_started_at
     ON experiments (status, started_at DESC, id DESC);
+
+CREATE INDEX IF NOT EXISTS idx_experiments_archived_at
+    ON experiments (archived_at, updated_at DESC, id DESC);
 
 CREATE INDEX IF NOT EXISTS idx_probes_probe_id_deleted_at
     ON probes (probe_id, deleted_at, updated_at DESC, id DESC);
@@ -89,6 +101,9 @@ LEFT JOIN experiment_probes p
    AND p.probe_id = tl.probe_id
    AND (p.valid_from IS NULL OR p.valid_from <= tl.recorded_at)
    AND (p.valid_to IS NULL OR p.valid_to > tl.recorded_at);
+
+ALTER VIEW v_temperature_logs_grafana OWNER TO apluser;
+GRANT SELECT ON v_temperature_logs_grafana TO apluser;
 
 ALTER TABLE temperature_logs OWNER TO apluser;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE temperature_logs TO apluser;

@@ -21,7 +21,7 @@ import json
 
 
 from pydantic import BaseModel, ConfigDict, StrictStr
-from typing import Any, ClassVar, Dict, List
+from typing import Any, ClassVar, Dict, List, Optional
 try:
     from typing import Self
 except ImportError:
@@ -32,7 +32,8 @@ class ExperimentCreateRequest(BaseModel):
     ExperimentCreateRequest
     """ # noqa: E501
     name: StrictStr
-    __properties: ClassVar[List[str]] = ["name"]
+    description: Optional[StrictStr] = None
+    __properties: ClassVar[List[str]] = ["name", "description"]
 
     model_config = {
         "populate_by_name": True,
@@ -83,8 +84,7 @@ class ExperimentCreateRequest(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "name": obj.get("name")
+            "name": obj.get("name"),
+            "description": obj.get("description")
         })
         return _obj
-
-

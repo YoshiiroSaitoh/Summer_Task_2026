@@ -20,7 +20,7 @@ class ExperimentControl:
         self._experiment_repository = ExperimentRepository()
         self._experiment_probe_repository = ExperimentProbeRepository()
 
-    def create_experiment(self, name: str) -> Experiment:
+    def create_experiment(self, name: str, description: str | None = None) -> Experiment:
         self._validate_name(name)
         now = datetime.now(timezone.utc)
         with self._connection_manager.get_session() as session:
@@ -28,9 +28,12 @@ class ExperimentControl:
                 experiment = self._experiment_repository.insert(
                     session,
                     name=name,
+                    description=description,
                     status="planned",
                     started_at=None,
                     ended_at=None,
+                    completed_at=None,
+                    archived_at=None,
                     created_at=now,
                     updated_at=now,
                 )
@@ -68,12 +71,57 @@ class ExperimentControl:
                 experiment = self._experiment_repository.find_by_id(session, experiment_id)
                 if experiment is None:
                     raise ExperimentNotFoundException(f"experiment not found for {experiment_id}")
-                if experiment.status == "finished":
-                    raise ExperimentStateConflictException("finished experiment cannot be restarted")
+                if experiment.archived_at is not None:
+                    raise ExperimentStateConflictException("archived experiment cannot be started")
                 if experiment.status == "running":
                     return experiment
+                if experiment.status != "planned":
+                    raise ExperimentStateConflictException("experiment cannot be started")
                 experiment.status = "running"
                 experiment.started_at = experiment.started_at or now
+                experiment.ended_at = None
+                experiment.updated_at = now
+                updated_experiment = self._experiment_repository.update(session, experiment)
+                session.commit()
+                return updated_experiment
+            except Exception:
+                session.rollback()
+                raise
+
+    def complete_experiment(self, experiment_id: int) -> Experiment:
+        now = datetime.now(timezone.utc)
+        with self._connection_manager.get_session() as session:
+            try:
+                experiment = self._experiment_repository.find_by_id(session, experiment_id)
+                if experiment is None:
+                    raise ExperimentNotFoundException(f"experiment not found for {experiment_id}")
+                if experiment.status == "running":
+                    experiment.status = "completed"
+                    experiment.ended_at = now
+                    experiment.completed_at = now
+                    experiment.updated_at = now
+                    updated_experiment = self._experiment_repository.update(session, experiment)
+                    session.commit()
+                    return updated_experiment
+                if experiment.status == "completed":
+                    return experiment
+                raise ExperimentStateConflictException("running experiment is required")
+            except Exception:
+                session.rollback()
+                raise
+
+    def reopen_experiment(self, experiment_id: int) -> Experiment:
+        now = datetime.now(timezone.utc)
+        with self._connection_manager.get_session() as session:
+            try:
+                experiment = self._experiment_repository.find_by_id(session, experiment_id)
+                if experiment is None:
+                    raise ExperimentNotFoundException(f"experiment not found for {experiment_id}")
+                if experiment.status != "completed":
+                    raise ExperimentStateConflictException("completed experiment is required")
+                experiment.status = "running"
+                experiment.ended_at = None
+                experiment.completed_at = None
                 experiment.updated_at = now
                 updated_experiment = self._experiment_repository.update(session, experiment)
                 session.commit()
@@ -83,16 +131,21 @@ class ExperimentControl:
                 raise
 
     def end_experiment(self, experiment_id: int) -> Experiment:
+        return self.complete_experiment(experiment_id)
+
+    def delete_experiment(self, experiment_id: int) -> Experiment:
         now = datetime.now(timezone.utc)
         with self._connection_manager.get_session() as session:
             try:
                 experiment = self._experiment_repository.find_by_id(session, experiment_id)
                 if experiment is None:
                     raise ExperimentNotFoundException(f"experiment not found for {experiment_id}")
-                if experiment.status != "running":
-                    raise ExperimentStateConflictException("running experiment is required")
-                experiment.status = "finished"
-                experiment.ended_at = now
+                if experiment.status == "running":
+                    raise ExperimentStateConflictException("running experiment cannot be archived")
+                if experiment.archived_at is not None:
+                    return experiment
+                experiment.status = "archived"
+                experiment.archived_at = now
                 experiment.updated_at = now
                 updated_experiment = self._experiment_repository.update(session, experiment)
                 session.commit()

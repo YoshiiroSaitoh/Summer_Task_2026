@@ -11,9 +11,12 @@ CREATE TABLE temperature_logs (
 CREATE TABLE experiments (
     id BIGSERIAL PRIMARY KEY,
     name VARCHAR(128) NOT NULL,
+    description VARCHAR(512) NULL,
     status VARCHAR(32) NOT NULL,
     started_at TIMESTAMPTZ NULL,
     ended_at TIMESTAMPTZ NULL,
+    completed_at TIMESTAMPTZ NULL,
+    archived_at TIMESTAMPTZ NULL,
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL
 );

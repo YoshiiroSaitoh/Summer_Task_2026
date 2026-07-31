@@ -226,6 +226,37 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
           description: Not found
       summary: Get an experiment
+    delete:
+      operationId: deleteExperiment
+      parameters:
+      - explode: false
+        in: path
+        name: experiment_id
+        required: true
+        schema:
+          format: int64
+          type: integer
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Experiment"
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid state
+      summary: Archive an experiment
   /experiments/{experiment_id}/start:
     post:
       operationId: startExperiment
@@ -290,6 +321,70 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
           description: Invalid state
       summary: End an experiment
+  /experiments/{experiment_id}/complete:
+    post:
+      operationId: completeExperiment
+      parameters:
+      - explode: false
+        in: path
+        name: experiment_id
+        required: true
+        schema:
+          format: int64
+          type: integer
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Experiment"
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid state
+      summary: Complete an experiment
+  /experiments/{experiment_id}/reopen:
+    post:
+      operationId: reopenExperiment
+      parameters:
+      - explode: false
+        in: path
+        name: experiment_id
+        required: true
+        schema:
+          format: int64
+          type: integer
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Experiment"
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid state
+      summary: Reopen an experiment
   /experiments/{experiment_id}/probes:
     get:
       operationId: listExperimentProbes
@@ -420,11 +515,14 @@ components:
     Experiment:
       example:
         ended_at: 2000-01-23T04:56:07.000+00:00
+        completed_at: 2000-01-23T04:56:07.000+00:00
+        archived_at: 2000-01-23T04:56:07.000+00:00
         created_at: 2000-01-23T04:56:07.000+00:00
         name: Experiment 001
+        description: cooling test
         updated_at: 2000-01-23T04:56:07.000+00:00
         started_at: 2000-01-23T04:56:07.000+00:00
-        status: running
+        status: completed
         id: 0
       properties:
         id:
@@ -434,10 +532,15 @@ components:
         name:
           title: name
           type: string
+        description:
+          title: description
+          type: string
         status:
           enum:
           - planned
           - running
+          - completed
+          - archived
           - finished
           title: status
           type: string
@@ -448,6 +551,14 @@ components:
         ended_at:
           format: date-time
           title: ended_at
+          type: string
+        completed_at:
+          format: date-time
+          title: completed_at
+          type: string
+        archived_at:
+          format: date-time
+          title: archived_at
           type: string
         created_at:
           format: date-time
@@ -467,9 +578,13 @@ components:
     ExperimentCreateRequest:
       example:
         name: Experiment 001
+        description: cooling test
       properties:
         name:
           title: name
+          type: string
+        description:
+          title: description
           type: string
       required:
       - name

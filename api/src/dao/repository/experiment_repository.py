@@ -17,18 +17,24 @@ class ExperimentRepository:
         self,
         session: Session,
         name: str,
+        description: str | None,
         status: str,
         started_at: datetime | None,
         ended_at: datetime | None,
+        completed_at: datetime | None,
+        archived_at: datetime | None,
         created_at: datetime,
         updated_at: datetime,
     ) -> Experiment:
         try:
             statement = insert(experiments).values(
                 name=name,
+                description=description,
                 status=status,
                 started_at=started_at,
                 ended_at=ended_at,
+                completed_at=completed_at,
+                archived_at=archived_at,
                 created_at=created_at,
                 updated_at=updated_at,
             )
@@ -42,15 +48,7 @@ class ExperimentRepository:
             raise DBException("failed to insert experiment") from exc
 
     def list_all(self, session: Session) -> Sequence[Experiment]:
-        statement = select(
-            experiments.c.id,
-            experiments.c.name,
-            experiments.c.status,
-            experiments.c.started_at,
-            experiments.c.ended_at,
-            experiments.c.created_at,
-            experiments.c.updated_at,
-        ).order_by(experiments.c.id.asc())
+        statement = self._select_columns().where(experiments.c.archived_at.is_(None)).order_by(experiments.c.id.asc())
         rows = session.execute(statement).mappings()
         return [self._to_domain(row) for row in rows]
 
@@ -59,16 +57,9 @@ class ExperimentRepository:
 
     def find_current(self, session: Session) -> Experiment | None:
         statement = (
-            select(
-                experiments.c.id,
-                experiments.c.name,
-                experiments.c.status,
-                experiments.c.started_at,
-                experiments.c.ended_at,
-                experiments.c.created_at,
-                experiments.c.updated_at,
-            )
+            self._select_columns()
             .where(experiments.c.status == "running")
+            .where(experiments.c.archived_at.is_(None))
             .order_by(experiments.c.started_at.desc(), experiments.c.id.desc())
             .limit(1)
         )
@@ -90,9 +81,12 @@ class ExperimentRepository:
                 .where(experiments.c.id == experiment.id)
                 .values(
                     name=experiment.name,
+                    description=experiment.description,
                     status=experiment.status,
                     started_at=experiment.started_at,
                     ended_at=experiment.ended_at,
+                    completed_at=experiment.completed_at,
+                    archived_at=experiment.archived_at,
                     created_at=experiment.created_at,
                     updated_at=experiment.updated_at,
                 )
@@ -106,27 +100,36 @@ class ExperimentRepository:
             raise DBException("failed to update experiment") from exc
 
     def _select_by_id(self, session: Session, experiment_id: int) -> Experiment | None:
-        statement = select(
-            experiments.c.id,
-            experiments.c.name,
-            experiments.c.status,
-            experiments.c.started_at,
-            experiments.c.ended_at,
-            experiments.c.created_at,
-            experiments.c.updated_at,
-        ).where(experiments.c.id == experiment_id)
+        statement = self._select_columns().where(experiments.c.id == experiment_id)
         row = session.execute(statement).mappings().first()
         if row is None:
             return None
         return self._to_domain(row)
 
+    def _select_columns(self):
+        return select(
+            experiments.c.id,
+            experiments.c.name,
+            experiments.c.description,
+            experiments.c.status,
+            experiments.c.started_at,
+            experiments.c.ended_at,
+            experiments.c.completed_at,
+            experiments.c.archived_at,
+            experiments.c.created_at,
+            experiments.c.updated_at,
+        )
+
     def _to_domain(self, row: dict[str, object]) -> Experiment:
         return Experiment(
             id=int(row["id"]),
             name=str(row["name"]),
+            description=row["description"],
             status=str(row["status"]),
             started_at=row["started_at"],
             ended_at=row["ended_at"],
+            completed_at=row["completed_at"],
+            archived_at=row["archived_at"],
             created_at=row["created_at"],
             updated_at=row["updated_at"],
         )

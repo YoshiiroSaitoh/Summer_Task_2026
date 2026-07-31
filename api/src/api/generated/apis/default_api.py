@@ -261,6 +261,63 @@ async def end_experiment(
     return await BaseDefaultApi.subclasses[0]().end_experiment(experiment_id)
 
 
+@router.post(
+    "/experiments/{experiment_id}/complete",
+    responses={
+        200: {"model": Experiment, "description": "OK"},
+        404: {"model": ErrorResponse, "description": "Not found"},
+        409: {"model": ErrorResponse, "description": "Invalid state"},
+    },
+    tags=["default"],
+    summary="Complete an experiment",
+    response_model_by_alias=True,
+)
+async def complete_experiment(
+    experiment_id: StrictInt = Path(..., description=""),
+) -> Experiment:
+    if not BaseDefaultApi.subclasses:
+        raise HTTPException(status_code=500, detail="Not implemented")
+    return await BaseDefaultApi.subclasses[0]().complete_experiment(experiment_id)
+
+
+@router.post(
+    "/experiments/{experiment_id}/reopen",
+    responses={
+        200: {"model": Experiment, "description": "OK"},
+        404: {"model": ErrorResponse, "description": "Not found"},
+        409: {"model": ErrorResponse, "description": "Invalid state"},
+    },
+    tags=["default"],
+    summary="Reopen an experiment",
+    response_model_by_alias=True,
+)
+async def reopen_experiment(
+    experiment_id: StrictInt = Path(..., description=""),
+) -> Experiment:
+    if not BaseDefaultApi.subclasses:
+        raise HTTPException(status_code=500, detail="Not implemented")
+    return await BaseDefaultApi.subclasses[0]().reopen_experiment(experiment_id)
+
+
+@router.delete(
+    "/experiments/{experiment_id}",
+    responses={
+        200: {"model": Experiment, "description": "OK"},
+        404: {"model": ErrorResponse, "description": "Not found"},
+        409: {"model": ErrorResponse, "description": "Invalid state"},
+    },
+    tags=["default"],
+    summary="Archive an experiment",
+    response_model_by_alias=True,
+)
+async def delete_experiment(
+    experiment_id: StrictInt = Path(..., description=""),
+) -> Experiment:
+    if not BaseDefaultApi.subclasses:
+        raise HTTPException(status_code=500, detail="Not implemented")
+    return await BaseDefaultApi.subclasses[0]().delete_experiment(experiment_id)
+
+
 @router.get(
     "/experiments/{experiment_id}/probes",
     responses={

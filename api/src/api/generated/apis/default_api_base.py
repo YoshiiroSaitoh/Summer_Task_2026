@@ -106,6 +106,27 @@ class BaseDefaultApi:
         ...
 
 
+    async def complete_experiment(
+        self,
+        experiment_id: StrictInt,
+    ) -> Experiment:
+        ...
+
+
+    async def reopen_experiment(
+        self,
+        experiment_id: StrictInt,
+    ) -> Experiment:
+        ...
+
+
+    async def delete_experiment(
+        self,
+        experiment_id: StrictInt,
+    ) -> Experiment:
+        ...
+
+
     async def list_experiment_probes(
         self,
         experiment_id: StrictInt,

@@ -117,7 +117,10 @@ class DefaultApiImpl(BaseApiImpl, BaseDefaultApi):
         experiment_create_request: ExperimentCreateRequest,
     ) -> GeneratedExperiment:
         self.log_request("POST", "/experiments")
-        experiment = self._experiment_control.create_experiment(experiment_create_request.name)
+        experiment = self._experiment_control.create_experiment(
+            experiment_create_request.name,
+            experiment_create_request.description,
+        )
         self.log_response(201)
         return self._to_generated_experiment(experiment)
 
@@ -142,6 +145,24 @@ class DefaultApiImpl(BaseApiImpl, BaseDefaultApi):
     async def end_experiment(self, experiment_id: int) -> GeneratedExperiment:
         self.log_request("POST", f"/experiments/{experiment_id}/end")
         experiment = self._experiment_control.end_experiment(experiment_id)
+        self.log_response(200)
+        return self._to_generated_experiment(experiment)
+
+    async def complete_experiment(self, experiment_id: int) -> GeneratedExperiment:
+        self.log_request("POST", f"/experiments/{experiment_id}/complete")
+        experiment = self._experiment_control.complete_experiment(experiment_id)
+        self.log_response(200)
+        return self._to_generated_experiment(experiment)
+
+    async def reopen_experiment(self, experiment_id: int) -> GeneratedExperiment:
+        self.log_request("POST", f"/experiments/{experiment_id}/reopen")
+        experiment = self._experiment_control.reopen_experiment(experiment_id)
+        self.log_response(200)
+        return self._to_generated_experiment(experiment)
+
+    async def delete_experiment(self, experiment_id: int) -> GeneratedExperiment:
+        self.log_request("DELETE", f"/experiments/{experiment_id}")
+        experiment = self._experiment_control.delete_experiment(experiment_id)
         self.log_response(200)
         return self._to_generated_experiment(experiment)
 
@@ -213,9 +234,12 @@ class DefaultApiImpl(BaseApiImpl, BaseDefaultApi):
         return GeneratedExperiment(
             id=experiment.id,
             name=experiment.name,
+            description=experiment.description,
             status=experiment.status,
             started_at=experiment.started_at,
             ended_at=experiment.ended_at,
+            completed_at=experiment.completed_at,
+            archived_at=experiment.archived_at,
             created_at=experiment.created_at,
             updated_at=experiment.updated_at,
         )

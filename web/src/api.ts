@@ -33,6 +33,7 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
 
 export interface CreateExperimentPayload {
   name: string;
+  description?: string | null;
 }
 
 export interface CreateRunPayload {
@@ -84,6 +85,24 @@ export function startExperiment(experimentId: number): Promise<Experiment> {
 export function endExperiment(experimentId: number): Promise<Experiment> {
   return requestJson<Experiment>(`/experiments/${experimentId}/end`, {
     method: 'POST',
+  });
+}
+
+export function completeExperiment(experimentId: number): Promise<Experiment> {
+  return requestJson<Experiment>(`/experiments/${experimentId}/complete`, {
+    method: 'POST',
+  });
+}
+
+export function reopenExperiment(experimentId: number): Promise<Experiment> {
+  return requestJson<Experiment>(`/experiments/${experimentId}/reopen`, {
+    method: 'POST',
+  });
+}
+
+export function deleteExperiment(experimentId: number): Promise<Experiment> {
+  return requestJson<Experiment>(`/experiments/${experimentId}`, {
+    method: 'DELETE',
   });
 }
 
