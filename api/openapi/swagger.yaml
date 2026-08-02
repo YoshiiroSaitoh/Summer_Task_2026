@@ -456,8 +456,99 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
           description: Conflict
       summary: Assign a probe to an experiment
+  /experiments/{experiment_id}/runs/{run_id}/probes:
+    get:
+      operationId: listExperimentRunProbes
+      summary: List probes assigned to one measurement run
+      parameters:
+      - in: path
+        name: experiment_id
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - in: path
+        name: run_id
+        required: true
+        schema:
+          format: int64
+          type: integer
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ExperimentRunProbe"
+    post:
+      operationId: addExperimentRunProbe
+      summary: Assign a probe to one measurement run
+      parameters:
+      - in: path
+        name: experiment_id
+        required: true
+        schema:
+          format: int64
+          type: integer
+      - in: path
+        name: run_id
+        required: true
+        schema:
+          format: int64
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExperimentRunProbeCreateRequest"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExperimentRunProbe"
 components:
   schemas:
+    ExperimentRunProbe:
+      type: object
+      required:
+      - id
+      - experiment_run_id
+      - probe_id
+      - role
+      - created_at
+      - updated_at
+      properties:
+        id:
+          format: int64
+          type: integer
+        experiment_run_id:
+          format: int64
+          type: integer
+        probe_id:
+          type: string
+        role:
+          type: string
+        created_at:
+          format: date-time
+          type: string
+        updated_at:
+          format: date-time
+          type: string
+    ExperimentRunProbeCreateRequest:
+      type: object
+      required:
+      - probe_id
+      - role
+      properties:
+        probe_id:
+          type: string
+        role:
+          type: string
     TemperatureLog:
       example:
         recorded_at: 2000-01-23T04:56:07.000+00:00

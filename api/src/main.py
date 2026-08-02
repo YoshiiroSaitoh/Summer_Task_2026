@@ -5,6 +5,7 @@ import os
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 
 from api.generated.apis.default_api import router as generated_router
 from api.generated.models.error_response import ErrorResponse
@@ -28,6 +29,8 @@ from control.exception.temperature_not_found_exception import (
 )
 from dao.exception.db_exception import DBException
 from control.probe_control import ProbeControl
+from control.experiment_run_control import ExperimentRunControl
+from control.experiment_run_probe_control import ExperimentRunProbeControl
 from dao.manager.postgresql_manager_impl import PostgreSQLManagerImpl
 
 app = FastAPI(title="Temperature Log API", version="0.1.0")
@@ -40,12 +43,79 @@ app.add_middleware(
         "http://127.0.0.1:3000",
         "http://127.0.0.1:4173",
         "http://127.0.0.1:5173",
+        "http://[::1]:3000",
+        "http://[::1]:4173",
+        "http://[::1]:5173",
+        "http://experiment.local:3000",
+        "http://experiment.local:4173",
+        "http://experiment.local:5173",
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 app.include_router(generated_router)
+
+
+class ExperimentRunProbeCreateRequest(BaseModel):
+    probe_id: str
+    role: str
+
+
+def _connection_manager() -> PostgreSQLManagerImpl:
+    return PostgreSQLManagerImpl(
+        os.getenv(
+            "DATABASE_URL",
+            "postgresql+psycopg://postgres:postgres@localhost:5432/postgres",
+        )
+    )
+
+
+def _serialize_run_probe(assignment) -> dict[str, object]:
+    return {
+        "id": assignment.id,
+        "experiment_run_id": assignment.experiment_run_id,
+        "probe_id": assignment.probe_id,
+        "role": assignment.role,
+        "created_at": assignment.created_at,
+        "updated_at": assignment.updated_at,
+    }
+
+
+def _serialize_run(run) -> dict[str, object]:
+    return {
+        "id": run.id,
+        "experiment_id": run.experiment_id,
+        "label": run.label,
+        "started_at": run.started_at,
+        "ended_at": run.ended_at,
+        "created_at": run.created_at,
+        "updated_at": run.updated_at,
+    }
+
+
+@app.post("/experiments/{experiment_id}/runs/{run_id}/start")
+def start_experiment_run(experiment_id: int, run_id: int) -> dict[str, object]:
+    control = ExperimentRunControl(_connection_manager())
+    return _serialize_run(control.start_experiment_run(experiment_id, run_id))
+
+
+@app.get("/experiments/{experiment_id}/runs/{run_id}/probes")
+def list_experiment_run_probes(experiment_id: int, run_id: int) -> list[dict[str, object]]:
+    control = ExperimentRunProbeControl(_connection_manager())
+    return [_serialize_run_probe(item) for item in control.list_assignments(experiment_id, run_id)]
+
+
+@app.post("/experiments/{experiment_id}/runs/{run_id}/probes", status_code=201)
+def add_experiment_run_probe(
+    experiment_id: int,
+    run_id: int,
+    payload: ExperimentRunProbeCreateRequest,
+) -> dict[str, object]:
+    control = ExperimentRunProbeControl(_connection_manager())
+    return _serialize_run_probe(
+        control.add_assignment(experiment_id, run_id, payload.probe_id, payload.role)
+    )
 
 
 @app.on_event("startup")

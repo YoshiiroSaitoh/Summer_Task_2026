@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  addExperimentProbe,
+  addExperimentRunProbe,
   completeExperiment,
   createExperiment,
   createExperimentRun,
@@ -9,29 +9,39 @@ import {
   endExperimentRun,
   getCurrentExperimentRun,
   getExperiment,
-  listExperimentProbes,
+  listExperimentRunProbes,
   listExperimentRuns,
   listExperiments,
   listProbes,
   reopenExperiment,
   startExperiment,
+  startExperimentRun,
 } from './api';
-import type { Experiment, ExperimentProbe, ExperimentRun, Probe } from './types';
+import type { Experiment, ExperimentRun, ExperimentRunProbe, Probe } from './types';
 
 type AppPage = { kind: 'list' } | { kind: 'detail'; experimentId: number } | { kind: 'probes' };
 
-function formatDateTime(value: string | null | undefined): string {
-  return value ? new Date(value).toLocaleString('ja-JP') : '—';
+const grafanaBaseUrl = import.meta.env.VITE_GRAFANA_BASE_URL ?? 'http://experiment.local:3000';
+
+function grafanaRunUrl(experimentId: number, runId: number): string {
+  const params = new URLSearchParams({
+    orgId: '1',
+    'var-experiment_id': String(experimentId),
+    'var-run_id': String(runId),
+    'var-probe_id': 'All',
+  });
+  return `${grafanaBaseUrl}/d/temperature-logs/temperature-logs?${params.toString()}`;
 }
 
-function statusLabel(status: string): string {
-  return {
-    planned: '計画中',
-    running: '実施中',
-    completed: '完了',
-    finished: '完了',
-    archived: 'アーカイブ',
-  }[status] ?? status;
+const navItems = [
+  { label: '実験一覧', path: '/' },
+  { label: 'プローブ管理', path: '/probes' },
+] as const;
+
+function isActivePath(page: AppPage, path: string): boolean {
+  if (path === '/') return page.kind === 'list';
+  if (path === '/probes') return page.kind === 'probes';
+  return page.kind === 'detail' && path === `/experiments/${page.experimentId}`;
 }
 
 function readPageFromLocation(): AppPage {
@@ -40,13 +50,45 @@ function readPageFromLocation(): AppPage {
   return match ? { kind: 'detail', experimentId: Number(match[1]) } : { kind: 'list' };
 }
 
+function formatDateTime(value: string | null | undefined): string {
+  return value ? new Date(value).toLocaleString('ja-JP') : '-';
+}
+
+function statusLabel(status: string): string {
+  return {
+    planned: '予定',
+    running: '実行中',
+    completed: '完了',
+    archived: 'アーカイブ',
+    finished: '完了',
+  }[status] ?? status;
+}
+
+function pageTitle(page: AppPage, experiment?: Experiment | null): string {
+  if (page.kind === 'list') return '実験計画';
+  if (page.kind === 'probes') return 'プローブ管理';
+  return experiment?.name ?? '実験詳細';
+}
+
+function pageLead(page: AppPage): string {
+  if (page.kind === 'list') {
+    return '実験の計画、詳細、プローブ割り当てをまとめて扱います。';
+  }
+  if (page.kind === 'probes') {
+    return '登録済みプローブを確認し、不要なものを削除できます。';
+  }
+  return '実験の状態遷移、回ごとの測定、プローブ割り当てを行います。';
+}
+
 export default function App() {
   const [page, setPage] = useState<AppPage>(() => readPageFromLocation());
+  const [menuOpen, setMenuOpen] = useState(false);
   const [experiments, setExperiments] = useState<Experiment[]>([]);
   const [detailExperiment, setDetailExperiment] = useState<Experiment | null>(null);
   const [runs, setRuns] = useState<ExperimentRun[]>([]);
   const [currentRun, setCurrentRun] = useState<ExperimentRun | null>(null);
-  const [assignments, setAssignments] = useState<ExperimentProbe[]>([]);
+  const [selectedRunId, setSelectedRunId] = useState<number | null>(null);
+  const [assignments, setAssignments] = useState<ExperimentRunProbe[]>([]);
   const [registeredProbes, setRegisteredProbes] = useState<Probe[]>([]);
   const [selectedProbeId, setSelectedProbeId] = useState('');
   const [loading, setLoading] = useState(false);
@@ -59,48 +101,56 @@ export default function App() {
 
   const selectedExperiment = useMemo(() => {
     if (page.kind !== 'detail') return null;
-    return detailExperiment ?? experiments.find((item) => item.id === page.experimentId) ?? null;
+    return detailExperiment ?? experiments.find((experiment) => experiment.id === page.experimentId) ?? null;
   }, [detailExperiment, experiments, page]);
 
   const refreshDetail = useCallback(async (experimentId: number) => {
-    const [detail, runItems, assignmentItems, activeRun, probeItems] = await Promise.all([
+    const [detail, runItems, activeRun, probeItems] = await Promise.all([
       getExperiment(experimentId),
       listExperimentRuns(experimentId),
-      listExperimentProbes(experimentId),
       getCurrentExperimentRun(experimentId).catch(() => null),
       listProbes(),
     ]);
+    const selectedId = activeRun?.id ?? runItems.at(-1)?.id ?? null;
+    const assignmentItems = selectedId === null
+      ? []
+      : await listExperimentRunProbes(experimentId, selectedId);
     setDetailExperiment(detail);
     setRuns(runItems);
     setAssignments(assignmentItems);
     setCurrentRun(activeRun);
+    setSelectedRunId(selectedId);
     setRegisteredProbes(probeItems);
   }, []);
 
-  const refreshPage = useCallback(async (nextPage: AppPage) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const experimentItems = await listExperiments();
-      setExperiments(experimentItems);
-      if (nextPage.kind === 'detail') {
-        await refreshDetail(nextPage.experimentId);
-      } else {
-        setDetailExperiment(null);
-        setRuns([]);
-        setCurrentRun(null);
-        setAssignments([]);
-        if (nextPage.kind === 'probes') {
-          const probeItems = await listProbes();
-          setRegisteredProbes(probeItems);
+  const refreshPage = useCallback(
+    async (nextPage: AppPage) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const experimentItems = await listExperiments();
+        setExperiments(experimentItems);
+        if (nextPage.kind === 'detail') {
+          await refreshDetail(nextPage.experimentId);
+        } else {
+          setDetailExperiment(null);
+          setRuns([]);
+          setCurrentRun(null);
+          setSelectedRunId(null);
+          setAssignments([]);
+          if (nextPage.kind === 'probes') {
+            const probeItems = await listProbes();
+            setRegisteredProbes(probeItems);
+          }
         }
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : 'データの取得に失敗しました。');
+      } finally {
+        setLoading(false);
       }
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'データを読み込めませんでした。');
-    } finally {
-      setLoading(false);
-    }
-  }, [refreshDetail]);
+    },
+    [refreshDetail],
+  );
 
   useEffect(() => {
     void refreshPage(page);
@@ -115,6 +165,7 @@ export default function App() {
   function navigate(path: string) {
     window.history.pushState({}, '', path);
     setPage(readPageFromLocation());
+    setMenuOpen(false);
   }
 
   async function perform(action: () => Promise<unknown>, failureMessage: string) {
@@ -146,7 +197,7 @@ export default function App() {
       setNewExperimentDescription('');
       navigate(`/experiments/${created.id}`);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : '実験計画を作成できませんでした。');
+      setError(cause instanceof Error ? cause.message : '実験の作成に失敗しました。');
       setLoading(false);
     }
   }
@@ -155,53 +206,127 @@ export default function App() {
     if (page.kind !== 'detail') return;
     const label = newRunLabel.trim();
     if (!label) {
-      setError('測定名を入力してください。');
+      setError('測定回のラベルを入力してください。');
       return;
     }
     await perform(async () => {
       await createExperimentRun(page.experimentId, { label });
       setNewRunLabel('');
-    }, '測定を開始できませんでした。');
+    }, '測定回の作成に失敗しました。');
+  }
+
+  async function handleStartRun() {
+    if (page.kind !== 'detail' || selectedRunId === null) return;
+    await perform(
+      () => startExperimentRun(page.experimentId, selectedRunId),
+      '測定回の開始に失敗しました。',
+    );
   }
 
   async function handleAddProbe() {
-    if (page.kind !== 'detail') return;
+    if (page.kind !== 'detail' || selectedRunId === null) return;
     const probeId = newProbeId.trim();
     const role = newProbeRole.trim();
     if (!probeId || !role) {
-      setError('プローブと測定場所・役割を入力してください。');
+      setError('プローブIDと役割を入力してください。');
       return;
     }
     await perform(async () => {
-      await addExperimentProbe(page.experimentId, { probe_id: probeId, role });
+      await addExperimentRunProbe(page.experimentId, selectedRunId, { probe_id: probeId, role });
       setNewProbeId('');
       setNewProbeRole('');
-    }, 'プローブを割り当てられませんでした。');
+    }, 'プローブの割り当てに失敗しました。');
+  }
+
+  async function handleSelectRun(runId: number) {
+    if (page.kind !== 'detail') return;
+    setSelectedRunId(runId);
+    setLoading(true);
+    setError(null);
+    try {
+      setAssignments(await listExperimentRunProbes(page.experimentId, runId));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : '測定回の割り当てを取得できませんでした。');
+    } finally {
+      setLoading(false);
+    }
   }
 
   const experimentRunning = selectedExperiment?.status === 'running';
   const experimentCompleted = selectedExperiment?.status === 'completed' || selectedExperiment?.status === 'finished';
+  const selectedRun = runs.find((run) => run.id === selectedRunId) ?? null;
 
   return (
-    <main className="app">
-      <header className="hero">
-        <div>
-          <p className="eyebrow">Summer Task 2026</p>
-          <h1>{page.kind === 'list' ? '実験計画' : page.kind === 'probes' ? 'プローブ管理' : selectedExperiment?.name ?? '実験詳細'}</h1>
-          <p className="lead">
-            {page.kind === 'list'
-              ? '先に実験の目的と条件を計画し、その実験の中で測定を必要な回数だけ実施します。'
-              : page.kind === 'probes'
-                ? '受信したプローブの登録状況を管理します。'
-                : '実験全体の進行と、個々の測定の開始・終了を分けて管理します。'}
-          </p>
+    <main className="app-shell">
+      <header className="topbar">
+        <div className="topbar-brand">
+          <button
+            type="button"
+            className="icon-button"
+            aria-label="メニューを開く"
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((current) => !current)}
+          >
+            <span />
+            <span />
+            <span />
+          </button>
+          <div>
+            <p className="eyebrow">Summer Task 2026</p>
+            <h1>{pageTitle(page, selectedExperiment)}</h1>
+          </div>
         </div>
-        <nav className="page-actions" aria-label="ページ操作">
-          {page.kind !== 'list' && <button className="button secondary" onClick={() => navigate('/')}>実験一覧</button>}
-          {page.kind !== 'probes' && <button className="button secondary" onClick={() => navigate('/probes')}>プローブ管理</button>}
-          <button className="button secondary" onClick={() => void refreshPage(page)} disabled={loading}>更新</button>
-        </nav>
+
+        <div className="topbar-actions">
+          <button type="button" className="button secondary" onClick={() => navigate('/')} disabled={loading}>
+            実験一覧
+          </button>
+          <button type="button" className="button secondary" onClick={() => navigate('/probes')} disabled={loading}>
+            プローブ管理
+          </button>
+          <button type="button" className="button secondary" onClick={() => void refreshPage(page)} disabled={loading}>
+            更新
+          </button>
+        </div>
       </header>
+
+      <div className={`drawer-backdrop ${menuOpen ? 'open' : ''}`} onClick={() => setMenuOpen(false)} />
+      <aside className={`drawer ${menuOpen ? 'open' : ''}`} aria-label="メインメニュー">
+        <div className="drawer-header">
+          <div>
+            <p className="eyebrow">Navigation</p>
+            <strong>メニュー</strong>
+          </div>
+          <button type="button" className="icon-button close-button" aria-label="メニューを閉じる" onClick={() => setMenuOpen(false)}>
+            ×
+          </button>
+        </div>
+        <nav className="drawer-nav">
+          {navItems.map((item) => (
+            <button
+              key={item.path}
+              type="button"
+              className={`drawer-link ${isActivePath(page, item.path) ? 'active' : ''}`}
+              onClick={() => navigate(item.path)}
+            >
+              {item.label}
+            </button>
+          ))}
+          {page.kind === 'detail' && (
+            <button
+              type="button"
+              className={`drawer-link ${isActivePath(page, `/experiments/${page.experimentId}`) ? 'active' : ''}`}
+              onClick={() => navigate(`/experiments/${page.experimentId}`)}
+            >
+              実験詳細
+            </button>
+          )}
+        </nav>
+      </aside>
+
+      <section className="hero-copy">
+        <p className="lead">{pageLead(page)}</p>
+      </section>
 
       {error && <section className="banner error">{error}</section>}
 
@@ -209,26 +334,65 @@ export default function App() {
         <>
           <section className="card plan-card">
             <div className="section-heading">
-              <div><span className="step-number">1</span><div><h2>新しい実験を計画</h2><p>測定を始める前に、目的と条件を登録します。</p></div></div>
+              <div>
+                <span className="step-number">1</span>
+                <div>
+                  <h2>新しい実験を計画</h2>
+                  <p>測定を始める前に、目的と条件を登録します。</p>
+                </div>
+              </div>
             </div>
+
             <div className="form-grid plan-form">
-              <label>実験名<input value={newExperimentName} onChange={(event) => setNewExperimentName(event.target.value)} placeholder="例：100gの水による温度比較" /></label>
-              <label>目的・条件<textarea value={newExperimentDescription} onChange={(event) => setNewExperimentDescription(event.target.value)} placeholder="何を、どの条件で比較するか" /></label>
+              <label>
+                実験名
+                <input
+                  value={newExperimentName}
+                  onChange={(event) => setNewExperimentName(event.target.value)}
+                  placeholder="例：100gの水による温度比較"
+                />
+              </label>
+              <label>
+                目的・条件
+                <textarea
+                  value={newExperimentDescription}
+                  onChange={(event) => setNewExperimentDescription(event.target.value)}
+                  placeholder="何を、どの条件で比較するか"
+                />
+              </label>
             </div>
-            <button className="button" onClick={() => void handleCreateExperiment()} disabled={loading}>実験計画を作成</button>
+
+            <button type="button" className="button" onClick={() => void handleCreateExperiment()} disabled={loading}>
+              実験計画を作成
+            </button>
           </section>
 
           <section className="card">
-            <div className="card-header"><h2>実験一覧</h2><span className="badge">{experiments.length}件</span></div>
+            <div className="card-header">
+              <h2>実験一覧</h2>
+              <span className="badge">{experiments.length}件</span>
+            </div>
             <div className="experiment-list">
-              {experiments.length === 0 ? <div className="empty-state">実験計画はまだありません。</div> : experiments.map((experiment) => (
-                <button key={experiment.id} className="experiment-row" onClick={() => navigate(`/experiments/${experiment.id}`)}>
-                  <span className={`status-dot status-${experiment.status}`} />
-                  <span className="experiment-main"><strong>{experiment.name}</strong><small>{experiment.description || '説明なし'}</small></span>
-                  <span className={`badge status-${experiment.status}`}>{statusLabel(experiment.status)}</span>
-                  <span className="row-arrow">›</span>
-                </button>
-              ))}
+              {experiments.length === 0 ? (
+                <div className="empty-state">実験計画はまだありません。</div>
+              ) : (
+                experiments.map((experiment) => (
+                  <button
+                    key={experiment.id}
+                    type="button"
+                    className="experiment-row"
+                    onClick={() => navigate(`/experiments/${experiment.id}`)}
+                  >
+                    <span className={`status-dot status-${experiment.status}`} />
+                    <span className="experiment-main">
+                      <strong>{experiment.name}</strong>
+                      <small>{experiment.description || '説明なし'}</small>
+                    </span>
+                    <span className={`badge status-${experiment.status}`}>{statusLabel(experiment.status)}</span>
+                    <span className="row-arrow">›</span>
+                  </button>
+                ))
+              )}
             </div>
           </section>
         </>
@@ -236,95 +400,247 @@ export default function App() {
 
       {page.kind === 'detail' && selectedExperiment && (
         <>
-          <section className="lifecycle" aria-label="実験の進行状況">
+          <section className="lifecycle" aria-label="実験の状態">
             {[
-              ['planned', '1', '計画・準備'],
-              ['running', '2', '実験実施'],
-              ['completed', '3', '実験完了'],
-            ].map(([status, number, label]) => {
+              { key: 'planned', label: '計画' },
+              { key: 'running', label: '実行中' },
+              { key: 'completed', label: '完了' },
+            ].map((item, index) => {
               const currentIndex = selectedExperiment.status === 'planned' ? 0 : experimentRunning ? 1 : 2;
-              const itemIndex = Number(number) - 1;
-              return <div key={status} className={`lifecycle-step ${itemIndex === currentIndex ? 'current' : ''} ${itemIndex < currentIndex ? 'done' : ''}`}><span>{itemIndex < currentIndex ? '✓' : number}</span><strong>{label}</strong></div>;
+              return (
+                <div
+                  key={item.key}
+                  className={`lifecycle-step ${index === currentIndex ? 'current' : ''} ${index < currentIndex ? 'done' : ''}`}
+                >
+                  <span>{index < currentIndex ? '✓' : index + 1}</span>
+                  <strong>{item.label}</strong>
+                </div>
+              );
             })}
           </section>
 
           <section className="detail-grid">
             <article className="card">
-              <div className="card-header"><h2>実験計画</h2><span className={`badge status-${selectedExperiment.status}`}>{statusLabel(selectedExperiment.status)}</span></div>
+              <div className="card-header">
+                <h2>実験詳細</h2>
+                <span className={`badge status-${selectedExperiment.status}`}>{statusLabel(selectedExperiment.status)}</span>
+              </div>
               <dl className="summary">
-                <div><dt>実験ID</dt><dd>#{selectedExperiment.id}</dd></div>
-                <div><dt>測定回数</dt><dd>{runs.length}回</dd></div>
-                <div className="summary-wide"><dt>目的・条件</dt><dd>{selectedExperiment.description || '未入力'}</dd></div>
-                <div><dt>実験開始</dt><dd>{formatDateTime(selectedExperiment.started_at)}</dd></div>
-                <div><dt>実験完了</dt><dd>{formatDateTime(selectedExperiment.completed_at)}</dd></div>
+                <div>
+                  <dt>ID</dt>
+                  <dd>#{selectedExperiment.id}</dd>
+                </div>
+                <div>
+                  <dt>測定回数</dt>
+                  <dd>{runs.length}回</dd>
+                </div>
+                <div className="summary-wide">
+                  <dt>目的・条件</dt>
+                  <dd>{selectedExperiment.description || '未設定'}</dd>
+                </div>
+                <div>
+                  <dt>開始</dt>
+                  <dd>{formatDateTime(selectedExperiment.started_at)}</dd>
+                </div>
+                <div>
+                  <dt>完了</dt>
+                  <dd>{formatDateTime(selectedExperiment.completed_at)}</dd>
+                </div>
               </dl>
             </article>
 
             <article className="card action-card">
-              <h2>実験全体の操作</h2>
-              {selectedExperiment.status === 'planned' && <>
-                <p>準備ができたら実験を開始します。測定は開始後に個別に行います。</p>
-                <button className="button" onClick={() => void perform(() => startExperiment(selectedExperiment.id), '実験を開始できませんでした。')} disabled={loading}>実験を開始</button>
-              </>}
-              {experimentRunning && <>
-                <p>{currentRun ? '実施中の測定を終了してから、実験全体を完了してください。' : '必要な測定がすべて終わったら、実験全体を完了します。'}</p>
-                <button className="button success" onClick={() => void perform(() => completeExperiment(selectedExperiment.id), '実験を完了できませんでした。')} disabled={loading || Boolean(currentRun)}>実験を完了</button>
-              </>}
-              {experimentCompleted && <>
-                <p>追加の測定が必要な場合は実験を再開できます。</p>
-                <button className="button" onClick={() => void perform(() => reopenExperiment(selectedExperiment.id), '実験を再開できませんでした。')} disabled={loading}>実験を再開</button>
-              </>}
-              <button className="text-button danger" onClick={() => void perform(() => deleteExperiment(selectedExperiment.id), 'アーカイブできませんでした。')} disabled={loading || experimentRunning}>実験をアーカイブ</button>
+              <h2>実験操作</h2>
+              {selectedExperiment.status === 'planned' && (
+                <>
+                  <p>測定回とプローブ割り当てを計画してから、実験を開始できます。</p>
+                  <button type="button" className="button" onClick={() => void perform(() => startExperiment(selectedExperiment.id), '実験の開始に失敗しました。')} disabled={loading}>
+                    実験を開始
+                  </button>
+                </>
+              )}
+              {experimentRunning && (
+                <>
+                  <p>{currentRun ? '測定中の回を終了してから、実験全体を終了してください。' : '測定回を開始するか、すべての測定が済んだら実験を終了できます。'}</p>
+                  <button
+                    type="button"
+                    className="button success"
+                    onClick={() => void perform(() => completeExperiment(selectedExperiment.id), '実験の完了に失敗しました。')}
+                    disabled={loading || Boolean(currentRun)}
+                  >
+                    実験を終了
+                  </button>
+                </>
+              )}
+              {experimentCompleted && (
+                <>
+                  <p>追加測定が必要な場合は、完了済みの実験を再開できます。</p>
+                  <button type="button" className="button" onClick={() => void perform(() => reopenExperiment(selectedExperiment.id), '実験の再開に失敗しました。')} disabled={loading}>
+                    実験を再開
+                  </button>
+                </>
+              )}
+              <button
+                type="button"
+                className="text-button danger"
+                onClick={() => void perform(() => deleteExperiment(selectedExperiment.id), '実験のアーカイブに失敗しました。')}
+                disabled={loading || experimentRunning}
+              >
+                実験をアーカイブ
+              </button>
             </article>
           </section>
 
           <section className="card">
             <div className="section-heading">
-              <div><span className="step-number">1</span><div><h2>プローブを準備</h2><p>この実験で使うプローブと測定場所・役割を設定します。</p></div></div>
-              <span className="badge">{assignments.length}本</span>
+              <div>
+                <span className="step-number">2</span>
+                <div>
+                  <h2>測定回のプローブ割り当て</h2>
+                  <p>{selectedRun ? `「${selectedRun.label}」で使うプローブと役割です。` : '先に測定回を作成してください。'}</p>
+                </div>
+              </div>
+              <span className="badge">{assignments.length}件</span>
             </div>
+
+            {!selectedRun && (
+              <div className="start-measurement">
+                <input
+                  value={newRunLabel}
+                  onChange={(event) => setNewRunLabel(event.target.value)}
+                  placeholder={`例：baseline-${runs.length + 1}`}
+                />
+                <button type="button" className="button" onClick={() => void handleCreateRun()} disabled={loading}>
+                  測定回を計画
+                </button>
+              </div>
+            )}
+
             <div className="probe-grid">
-              {assignments.map((probe) => <div className="probe-tile" key={probe.id}><span className={probe.valid_to ? 'probe-state inactive' : 'probe-state'} /><div><strong>{probe.role}</strong><small>{probe.probe_id}</small></div><span className="muted">{probe.valid_to ? '終了' : '有効'}</span></div>)}
+              {assignments.length === 0 ? (
+                <div className="empty-state">まだプローブ割り当てはありません。</div>
+              ) : (
+                assignments.map((probe) => (
+                  <div className="probe-tile" key={probe.id}>
+                    <span className="probe-state" />
+                    <div>
+                      <strong>{probe.role}</strong>
+                      <small>{probe.probe_id}</small>
+                    </div>
+                    <span className="muted">この測定回</span>
+                  </div>
+                ))
+              )}
             </div>
-            {!experimentCompleted && (
+
+            {selectedRun && !selectedRun.started_at && (
               <div className="inline-form">
                 <select value={newProbeId} onChange={(event) => setNewProbeId(event.target.value)}>
                   <option value="">プローブを選択</option>
-                  {registeredProbes.map((probe) => <option key={probe.probe_id} value={probe.probe_id}>{probe.probe_id}</option>)}
+                  {registeredProbes.map((probe) => (
+                    <option key={probe.probe_id} value={probe.probe_id}>
+                      {probe.probe_id}
+                    </option>
+                  ))}
                 </select>
-                <input value={newProbeRole} onChange={(event) => setNewProbeRole(event.target.value)} placeholder="測定場所・役割（例：冷蔵庫）" />
-                <button className="button secondary" onClick={() => void handleAddProbe()} disabled={loading}>割り当てる</button>
+                <input value={newProbeRole} onChange={(event) => setNewProbeRole(event.target.value)} placeholder="main / backup / room" />
+                <button type="button" className="button secondary" onClick={() => void handleAddProbe()} disabled={loading}>
+                  割り当て追加
+                </button>
               </div>
             )}
           </section>
 
           <section className="card measurement-card">
             <div className="section-heading">
-              <div><span className="step-number">2</span><div><h2>測定を実施</h2><p>1つの実験で、条件を揃えた測定を何回でも実施できます。</p></div></div>
-              <span className={`badge ${currentRun ? 'status-running' : ''}`}>{currentRun ? '測定中' : `${runs.length}回実施`}</span>
+              <div>
+                <span className="step-number">3</span>
+                <div>
+                  <h2>測定回</h2>
+                  <p>回ごとに開始・終了を繰り返し、グラフを重ねられるようにします。</p>
+                </div>
+              </div>
+              <span className={`badge ${currentRun ? 'status-running' : ''}`}>{currentRun ? '測定中' : `${runs.length}回`}</span>
             </div>
 
-            {experimentRunning ? currentRun ? (
-              <div className="active-measurement">
-                <div className="pulse" /><div><span>測定中</span><h3>{currentRun.label}</h3><p>開始：{formatDateTime(currentRun.started_at)}</p></div>
-                <button className="button danger-button" onClick={() => void perform(() => endExperimentRun(selectedExperiment.id, currentRun.id), '測定を終了できませんでした。')} disabled={loading}>この測定を終了</button>
-              </div>
-            ) : (
-              <div className="start-measurement">
-                <input value={newRunLabel} onChange={(event) => setNewRunLabel(event.target.value)} placeholder={`例：測定 ${runs.length + 1}回目`} />
-                <button className="button" onClick={() => void handleCreateRun()} disabled={loading}>新しい測定を開始</button>
-              </div>
-            ) : <div className="empty-state">測定を始めるには、先に実験全体を開始してください。</div>}
+            {currentRun ? (
+                <div className="active-measurement">
+                  <div className="pulse" />
+                  <div>
+                    <span>測定中</span>
+                    <h3>{currentRun.label}</h3>
+                    <p>開始: {formatDateTime(currentRun.started_at)}</p>
+                  </div>
+                  <button
+                    type="button"
+                    className="button danger-button"
+                    onClick={() => void perform(() => endExperimentRun(selectedExperiment.id, currentRun.id), '測定回の終了に失敗しました。')}
+                    disabled={loading}
+                  >
+                    測定回を終了
+                  </button>
+                </div>
+              ) : (
+                <>
+                <div className="start-measurement">
+                  <input
+                    value={newRunLabel}
+                    onChange={(event) => setNewRunLabel(event.target.value)}
+                    placeholder={`例：baseline-${runs.length + 1}`}
+                  />
+                  <button type="button" className="button" onClick={() => void handleCreateRun()} disabled={loading}>
+                    測定回を計画
+                  </button>
+                </div>
+                {experimentRunning && selectedRun && !selectedRun.started_at && (
+                  <button
+                    type="button"
+                    className="button success"
+                    onClick={() => void handleStartRun()}
+                    disabled={loading || assignments.length === 0}
+                  >
+                    選択中の測定回を開始
+                  </button>
+                )}
+                {!experimentRunning && (
+                  <div className="empty-state">実験開始後、計画済みの測定回を開始できます。</div>
+                )}
+                </>
+              )}
 
             <div className="run-history">
-              <h3>測定履歴</h3>
-              {runs.length === 0 ? <div className="empty-state">測定履歴はまだありません。</div> : runs.map((run, index) => (
-                <div className={`run-row ${run.id === currentRun?.id ? 'active' : ''}`} key={run.id}>
-                  <span className="run-index">{index + 1}</span>
-                  <div><strong>{run.label}</strong><small>{formatDateTime(run.started_at)} → {formatDateTime(run.ended_at)}</small></div>
-                  <span className={`badge ${run.ended_at ? 'status-completed' : 'status-running'}`}>{run.ended_at ? '終了' : '測定中'}</span>
-                </div>
-              ))}
+              <h3>履歴</h3>
+              {runs.length === 0 ? (
+                <div className="empty-state">まだ測定回はありません。</div>
+              ) : (
+                runs.map((run, index) => (
+                  <div
+                    className={`run-row ${run.id === selectedRunId ? 'active' : ''}`}
+                    key={run.id}
+                  >
+                    <span className="run-index">{index + 1}</span>
+                    <button type="button" className="run-select-button" onClick={() => void handleSelectRun(run.id)}>
+                      <strong>{run.label}</strong>
+                      <small>
+                        {run.started_at ? `${formatDateTime(run.started_at)} / ${formatDateTime(run.ended_at)}` : '開始前・プローブ割り当て可能'}
+                      </small>
+                    </button>
+                    <span className={`badge ${run.ended_at ? 'status-completed' : run.started_at ? 'status-running' : 'status-planned'}`}>
+                      {run.ended_at ? '終了' : run.started_at ? '測定中' : '予定'}
+                    </span>
+                    {run.started_at && (
+                      <a
+                        className="grafana-link"
+                        href={grafanaRunUrl(selectedExperiment.id, run.id)}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Grafanaで結果を見る
+                      </a>
+                    )}
+                  </div>
+                ))
+              )}
             </div>
           </section>
         </>
@@ -332,11 +648,44 @@ export default function App() {
 
       {page.kind === 'probes' && (
         <section className="card">
-          <div className="card-header"><h2>登録済みプローブ</h2><span className="badge">{registeredProbes.length}本</span></div>
-          <div className="table-wrap"><table><thead><tr><th /><th>プローブID</th><th>初回受信</th><th>最終受信</th></tr></thead><tbody>
-            {registeredProbes.map((probe) => <tr key={probe.probe_id} className={selectedProbeId === probe.probe_id ? 'selected' : ''}><td><input type="radio" checked={selectedProbeId === probe.probe_id} onChange={() => setSelectedProbeId(probe.probe_id)} /></td><td><strong>{probe.probe_id}</strong></td><td>{formatDateTime(probe.created_at)}</td><td>{formatDateTime(probe.updated_at)}</td></tr>)}
-          </tbody></table></div>
-          <button className="text-button danger" onClick={() => selectedProbeId && void perform(() => deleteProbe(selectedProbeId), '削除できませんでした。')} disabled={!selectedProbeId || loading}>選択したプローブを削除</button>
+          <div className="card-header">
+            <h2>プローブ一覧</h2>
+            <span className="badge">{registeredProbes.length}件</span>
+          </div>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th />
+                  <th>プローブID</th>
+                  <th>作成日時</th>
+                  <th>更新日時</th>
+                </tr>
+              </thead>
+              <tbody>
+                {registeredProbes.map((probe) => (
+                  <tr key={probe.probe_id} className={selectedProbeId === probe.probe_id ? 'selected' : ''}>
+                    <td>
+                      <input type="radio" checked={selectedProbeId === probe.probe_id} onChange={() => setSelectedProbeId(probe.probe_id)} />
+                    </td>
+                    <td>
+                      <strong>{probe.probe_id}</strong>
+                    </td>
+                    <td>{formatDateTime(probe.created_at)}</td>
+                    <td>{formatDateTime(probe.updated_at)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <button
+            type="button"
+            className="text-button danger"
+            onClick={() => selectedProbeId && void perform(() => deleteProbe(selectedProbeId), 'プローブの削除に失敗しました。')}
+            disabled={!selectedProbeId || loading}
+          >
+            選択したプローブを削除
+          </button>
         </section>
       )}
     </main>

@@ -17,19 +17,17 @@ export interface ExperimentRun {
   id: number;
   experiment_id: number;
   label: string;
-  started_at: string;
+  started_at: string | null;
   ended_at: string | null;
   created_at: string;
   updated_at: string;
 }
 
-export interface ExperimentProbe {
+export interface ExperimentRunProbe {
   id: number;
-  experiment_id: number;
+  experiment_run_id: number;
   probe_id: string;
   role: string;
-  valid_from: string | null;
-  valid_to: string | null;
   created_at: string;
   updated_at: string;
 }

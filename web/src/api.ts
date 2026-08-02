@@ -1,15 +1,20 @@
-import type { ErrorResponse, Experiment, ExperimentProbe, ExperimentRun, Probe } from './types';
+import type { ErrorResponse, Experiment, ExperimentRun, ExperimentRunProbe, Probe } from './types';
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080';
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? '/api';
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${apiBaseUrl}${path}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(init?.headers ?? {}),
-    },
-    ...init,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${apiBaseUrl}${path}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(init?.headers ?? {}),
+      },
+      ...init,
+    });
+  } catch {
+    throw new Error('APIに接続できません。APIサービスの起動状態を確認してください。');
+  }
 
   if (!response.ok) {
     let message = `${response.status} ${response.statusText}`;
@@ -121,18 +126,28 @@ export function getCurrentExperimentRun(experimentId: number): Promise<Experimen
   return requestJson<ExperimentRun>(`/experiments/${experimentId}/runs/current`);
 }
 
+export function startExperimentRun(experimentId: number, runId: number): Promise<ExperimentRun> {
+  return requestJson<ExperimentRun>(`/experiments/${experimentId}/runs/${runId}/start`, {
+    method: 'POST',
+  });
+}
+
 export function endExperimentRun(experimentId: number, runId: number): Promise<ExperimentRun> {
   return requestJson<ExperimentRun>(`/experiments/${experimentId}/runs/${runId}/end`, {
     method: 'POST',
   });
 }
 
-export function listExperimentProbes(experimentId: number): Promise<ExperimentProbe[]> {
-  return requestJson<ExperimentProbe[]>(`/experiments/${experimentId}/probes`);
+export function listExperimentRunProbes(experimentId: number, runId: number): Promise<ExperimentRunProbe[]> {
+  return requestJson<ExperimentRunProbe[]>(`/experiments/${experimentId}/runs/${runId}/probes`);
 }
 
-export function addExperimentProbe(experimentId: number, payload: CreateProbePayload): Promise<ExperimentProbe> {
-  return requestJson<ExperimentProbe>(`/experiments/${experimentId}/probes`, {
+export function addExperimentRunProbe(
+  experimentId: number,
+  runId: number,
+  payload: CreateProbePayload,
+): Promise<ExperimentRunProbe> {
+  return requestJson<ExperimentRunProbe>(`/experiments/${experimentId}/runs/${runId}/probes`, {
     method: 'POST',
     body: JSON.stringify(payload),
   });

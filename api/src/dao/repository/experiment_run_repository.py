@@ -18,7 +18,7 @@ class ExperimentRunRepository:
         session: Session,
         experiment_id: int,
         label: str,
-        started_at: datetime,
+        started_at: datetime | None,
         ended_at: datetime | None,
         created_at: datetime,
         updated_at: datetime,
@@ -57,7 +57,7 @@ class ExperimentRunRepository:
                 experiment_runs.c.updated_at,
             )
             .where(experiment_runs.c.experiment_id == experiment_id)
-            .order_by(experiment_runs.c.started_at.asc(), experiment_runs.c.id.asc())
+            .order_by(experiment_runs.c.id.asc())
         )
         rows = session.execute(statement).mappings()
         return [self._to_domain(row) for row in rows]
@@ -78,6 +78,7 @@ class ExperimentRunRepository:
                 experiment_runs.c.updated_at,
             )
             .where(experiment_runs.c.experiment_id == experiment_id)
+            .where(experiment_runs.c.started_at.is_not(None))
             .where(experiment_runs.c.ended_at.is_(None))
             .order_by(experiment_runs.c.started_at.desc(), experiment_runs.c.id.desc())
             .limit(1)

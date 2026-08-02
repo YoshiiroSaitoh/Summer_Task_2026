@@ -19,3 +19,5 @@ db/migrations/
 web/node_modules/
 web/dist/
 **/.env
+backups/*.dump
+backups/*.invalid

@@ -5,7 +5,7 @@
   "tags": ["temperature", "summer-task"],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 4,
   "refresh": "10s",
   "time": {
     "from": "now-24h",
@@ -14,14 +14,47 @@
   "templating": {
     "list": [
       {
-        "name": "probe_id",
+        "name": "experiment_id",
+        "label": "実験",
         "type": "query",
         "datasource": {
           "type": "postgres",
           "uid": "postgres"
         },
-        "definition": "SELECT DISTINCT probe_id FROM temperature_logs ORDER BY 1",
-        "query": "SELECT DISTINCT probe_id FROM temperature_logs ORDER BY 1",
+        "definition": "SELECT name || ' (#' || id || ')' AS __text, id AS __value FROM experiments WHERE archived_at IS NULL ORDER BY created_at DESC, id DESC",
+        "query": "SELECT name || ' (#' || id || ')' AS __text, id AS __value FROM experiments WHERE archived_at IS NULL ORDER BY created_at DESC, id DESC",
+        "refresh": 1,
+        "includeAll": false,
+        "multi": false,
+        "sort": 0,
+        "hide": 0
+      },
+      {
+        "name": "run_id",
+        "label": "測定回",
+        "type": "query",
+        "datasource": {
+          "type": "postgres",
+          "uid": "postgres"
+        },
+        "definition": "SELECT label || ' (#' || id || ')' AS __text, id AS __value FROM experiment_runs WHERE experiment_id = ${experiment_id:raw} ORDER BY id",
+        "query": "SELECT label || ' (#' || id || ')' AS __text, id AS __value FROM experiment_runs WHERE experiment_id = ${experiment_id:raw} ORDER BY id",
+        "refresh": 1,
+        "includeAll": false,
+        "multi": false,
+        "sort": 0,
+        "hide": 0
+      },
+      {
+        "name": "probe_id",
+        "label": "プローブ",
+        "type": "query",
+        "datasource": {
+          "type": "postgres",
+          "uid": "postgres"
+        },
+        "definition": "SELECT probe_id AS __text, probe_id AS __value FROM experiment_run_probes WHERE experiment_run_id = ${run_id:raw} ORDER BY role, probe_id",
+        "query": "SELECT probe_id AS __text, probe_id AS __value FROM experiment_run_probes WHERE experiment_run_id = ${run_id:raw} ORDER BY role, probe_id",
         "refresh": 1,
         "includeAll": true,
         "multi": true,
@@ -39,8 +72,9 @@
   "panels": [
     {
       "id": 1,
-      "type": "timeseries",
-      "title": "Temperature by probe",
+      "type": "trend",
+      "title": "測定開始からの温度変化",
+      "description": "選択した測定回の開始を0秒として、測定時間全体を表示します。ダッシュボードの日時範囲には依存しません。",
       "datasource": {
         "type": "postgres",
         "uid": "postgres"
@@ -58,20 +92,88 @@
             "type": "postgres",
             "uid": "postgres"
           },
-          "format": "time_series",
-          "rawSql": "SELECT recorded_at AS \"time\", temperature, probe_id AS \"metric\" FROM temperature_logs WHERE $__timeFilter(recorded_at) AND probe_id ~ '${probe_id:regex}' ORDER BY recorded_at",
-          "legendFormat": "{{metric}}"
+          "format": "table",
+          "rawSql": "SELECT elapsed_seconds::double precision AS \"elapsed_seconds\", temperature::double precision AS \"temperature\", COALESCE(probe_role, probe_id) || ' (' || probe_id || ')' AS \"series\" FROM v_temperature_logs_grafana WHERE experiment_id = ${experiment_id:raw} AND experiment_run_id = ${run_id:raw} AND probe_id ~ '${probe_id:regex}' ORDER BY elapsed_seconds, probe_id"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "partitionByValues",
+          "options": {
+            "fields": ["series"],
+            "keepFields": false,
+            "naming": {
+              "asLabels": true
+            }
+          }
+        },
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "elapsed_seconds",
+            "mode": "outer"
+          }
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "celsius"
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "spanNulls": true,
+            "showPoints": "never",
+            "lineStyle": {
+              "fill": "solid"
+            }
+          }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "elapsed_seconds"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "displayName",
+                "value": "経過時間"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "temperature"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "celsius"
+              },
+              {
+                "id": "displayName",
+                "value": "温度"
+              }
+            ]
+          }
+        ]
       },
       "options": {
+        "xField": "elapsed_seconds",
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        },
         "legend": {
           "displayMode": "table",
+          "showLegend": true,
           "placement": "bottom"
         }
       }

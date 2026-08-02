@@ -18,7 +18,7 @@ class ExperimentRun(BaseModel):
     id: StrictInt
     experiment_id: StrictInt
     label: StrictStr
-    started_at: datetime
+    started_at: Optional[datetime] = None
     ended_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime

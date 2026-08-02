@@ -4,17 +4,15 @@ from datetime import datetime, timezone
 
 from sqlalchemy.exc import OperationalError
 
-from control.experiment_control import ExperimentControl
-from control.experiment_run_control import ExperimentRunControl
 from control.exception.temperature_not_found_exception import (
     TemperatureNotFoundException,
 )
-from control.exception.experiment_not_found_exception import ExperimentNotFoundException
-from control.exception.experiment_run_not_found_exception import ExperimentRunNotFoundException
 from dao.manager.db_connection_manager import DBConnectionManager
 from dao.repository.probe_repository import ProbeRepository
 from dao.model.temperature_log import TemperatureLog
-from dao.repository.experiment_probe_repository import ExperimentProbeRepository
+from dao.repository.experiment_run_probe_repository import ExperimentRunProbeRepository
+from dao.repository.experiment_repository import ExperimentRepository
+from dao.repository.experiment_run_repository import ExperimentRunRepository
 from dao.repository.temperature_log_repository import TemperatureLogRepository
 
 
@@ -24,9 +22,9 @@ class TemperatureControl:
     def __init__(self, connection_manager: DBConnectionManager) -> None:
         self._connection_manager = connection_manager
         self._repository = TemperatureLogRepository()
-        self._experiment_control = ExperimentControl(connection_manager)
-        self._experiment_run_control = ExperimentRunControl(connection_manager)
-        self._experiment_probe_repository = ExperimentProbeRepository()
+        self._experiment_repository = ExperimentRepository()
+        self._experiment_run_repository = ExperimentRunRepository()
+        self._experiment_run_probe_repository = ExperimentRunProbeRepository()
         self._probe_repository = ProbeRepository()
 
     def register_temperature(
@@ -63,7 +61,7 @@ class TemperatureControl:
                     probe_id=probe_id,
                     recorded_at=effective_recorded_at,
                     temperature=temperature,
-                    experiment_id=None if active_assignment is None else active_assignment.experiment_id,
+                    experiment_id=None if active_assignment is None or active_run is None else active_run.experiment_id,
                     experiment_run_id=None if active_run is None else active_run.id,
                     elapsed_seconds=self._elapsed_seconds(active_run, effective_recorded_at),
                 )
@@ -115,49 +113,35 @@ class TemperatureControl:
             probe_id=probe_id,
             recorded_at=recorded_at,
             temperature=temperature,
-            experiment_id=None if active_assignment is None else active_assignment.experiment_id,
+            experiment_id=None if active_assignment is None or active_run is None else active_run.experiment_id,
             experiment_run_id=None if active_run is None else active_run.id,
             elapsed_seconds=self._elapsed_seconds(active_run, recorded_at),
         )
 
     def _resolve_context(self, session, probe_id: str, recorded_at: datetime):
         try:
-            active_assignment = self._experiment_probe_repository.find_active_by_probe_id(
-                session,
-                probe_id,
-                recorded_at,
-            )
-            current_experiment = self._resolve_current_experiment()
+            current_experiment = self._experiment_repository.find_current(session)
             if current_experiment is None:
-                return active_assignment, None
-            active_run = self._resolve_current_run(current_experiment.id)
+                return None, None
+            active_run = self._experiment_run_repository.find_current_by_experiment_id(
+                session,
+                current_experiment.id,
+            )
+            if active_run is None:
+                return None, None
+            active_assignment = self._experiment_run_probe_repository.find_by_run_and_probe(
+                session,
+                active_run.id,
+                probe_id,
+            )
             return active_assignment, active_run
         except OperationalError as exc:
-            if "experiment_probes" in str(exc):
+            if any(
+                table_name in str(exc)
+                for table_name in ("experiments", "experiment_runs", "experiment_run_probes")
+            ):
                 return None, None
             raise
-        except (ExperimentNotFoundException, ExperimentRunNotFoundException):
-            return active_assignment, None
-
-    def _resolve_current_experiment(self):
-        try:
-            return self._experiment_control.get_current_experiment()
-        except OperationalError as exc:
-            if "experiments" in str(exc):
-                return None
-            raise
-        except ExperimentNotFoundException:
-            return None
-
-    def _resolve_current_run(self, experiment_id: int):
-        try:
-            return self._experiment_run_control.get_current_experiment_run(experiment_id)
-        except OperationalError as exc:
-            if "experiment_runs" in str(exc):
-                return None
-            raise
-        except ExperimentRunNotFoundException:
-            return None
 
     def _elapsed_seconds(self, active_run, recorded_at: datetime) -> float | None:
         if active_run is None:

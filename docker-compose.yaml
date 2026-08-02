@@ -42,7 +42,8 @@ services:
       target: service
     working_dir: /app
     environment:
-      VITE_API_BASE_URL: http://localhost:8080
+      VITE_API_BASE_URL: /api
+      VITE_API_PROXY_TARGET: http://api:8080
     depends_on:
       api:
         condition: service_started
@@ -63,6 +64,8 @@ services:
       GF_SECURITY_ADMIN_PASSWORD: admin
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_PATHS_PROVISIONING: /etc/grafana/provisioning
+      GF_SERVER_DOMAIN: experiment.local
+      GF_SERVER_ROOT_URL: http://experiment.local:3000
     ports:
       - "3000:3000"
     volumes:
